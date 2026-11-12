@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ᴋᴀʏsᴇᴜʀ_ᴍᴅx - Pairing Server</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="leaves-container" id="leaves"></div>
+    <div class="container">
+        <div class="card">
+            <h1>ᴋᴀʏsᴇᴜʀ_ᴍᴅx</h1>
+            <p class="subtitle">« ʟᴇ ɢʟɪᴛᴄʜ ᴇsᴛ ᴍᴀ ᴘᴜɪssᴀɴᴄᴇ »</p>
+            
+            <div class="tab-selector">
+                <button class="tab-btn active" onclick="switchTab('pairing')">ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ</button>
+                <button class="tab-btn" onclick="switchTab('qr')">ᴄᴏᴅᴇ ǫʀ</button>
+            </div>
+
+            <div id="pairing-section" class="tab-content active">
+                <input type="text" id="phone-number" placeholder="ɴᴜᴍᴇʀᴏ (ᴇx: 24206...)">
+                <button class="action-btn" onclick="getPairingCode()">ᴏʙᴛᴇɴɪʀ ʟᴇ ᴄᴏᴅᴇ</button>
+                <div id="code-display" class="display-box">ᴇɴ ᴀᴛᴛᴇɴᴛᴇ...</div>
+            </div>
+
+            <div id="qr-section" class="tab-content">
+                <div id="qrcode-box" class="display-box">
+                    <img id="qr-img" src="" alt="QR Code" style="display:none; width:180px; margin:auto;" />
+                    <span id="qr-status">ᴄʜᴀʀɢᴇᴍᴇɴᴛ ᴅᴜ ǫʀ...</span>
+                </div>
+            </div>
+
+            <div class="servers-info">
+                <div>⚡ sᴇʀᴠᴇᴜʀ 1 : ᴀᴄᴛɪғ • ⚡ sᴇʀᴠᴇᴜʀ 2 : ᴀᴄᴛɪғ</div>
+                <div>⚡ sᴇʀᴠᴇᴜʀ 3 : ᴀᴄᴛɪғ • ⚡ sᴇʀᴠᴇᴜʀ 4 : ᴀᴄᴛɪғ</div>
+                <div>⚡ sᴇʀᴠᴇᴜʀ 5 : ᴜʟᴛʀᴀ-ᴘᴜɪssᴀɴᴛ</div>
+            </div>
+
+            <a href="https://whatsapp.com/channel/0029Vb8cfQn8V0te5K0atc1s" target="_blank" class="channel-btn">
+                📢 ᴠᴏɪʀ ʟᴀ ᴄʜᴀɪɴᴇ
+            </a>
+        </div>
+    </div>
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if(tab === 'pairing') {
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('pairing-section').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('qr-section').classList.add('active');
+                loadQR();
+            }
+        }
+        function createLeaves() {
+            const container = document.getElementById('leaves');
+            for(let i = 0; i < 35; i++) {
+                const leaf = document.createElement('div');
+                leaf.className = 'leaf';
+                leaf.style.left = Math.random() * 100 + 'vw';
+                leaf.style.animationDuration = (Math.random() * 5 + 4) + 's';
+                leaf.style.animationDelay = (Math.random() * 5) + 's';
+                container.appendChild(leaf);
+            }
+        }
+        createLeaves();
+        function getPairingCode() {
+            const phone = document.getElementById('phone-number').value;
+            if(!phone) { alert("ᴇɴᴛʀᴇᴢ ᴜɴ ɴᴜᴍᴇʀᴏ ᴠᴀʟɪᴅᴇ !"); return; }
+            document.getElementById('code-display').innerText = "ɢᴇɴᴇʀᴀᴛɪᴏɴ...";
+            fetch('/api/pairing?phone=' + phone)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('code-display').innerText = data.code || "ᴋᴀʏsᴇᴜʀ-999";
+                }).catch(() => {
+                    document.getElementById('code-display').innerText = "ᴇʀʀᴇᴜʀ";
+                });
+        }
+        function loadQR() {
+            fetch('/api/qr')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.qr) {
+                        document.getElementById('qr-img').src = data.qr;
+                        document.getElementById('qr-img').style.display = 'block';
+                        document.getElementById('qr-status').style.display = 'none';
+                    } else {
+                        document.getElementById('qr-status').innerText = data.status || "ǫʀ ɴᴏɴ ᴅɪsᴘᴏɴɪʙʟᴇ";
+                    }
+                });
+        }
+    </script>
+</body>
+</html>
