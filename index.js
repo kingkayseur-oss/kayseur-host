@@ -27,13 +27,45 @@ let latestQR = null;
 
 let startingWhatsApp = false;
 let reconnectTimer = null;
+
 let pairingInProgress = null;
 let pairingCode = null;
 let pairingPhone = null;
 let pairingCodeTime = 0;
 
-const PAIRING_CACHE_TIME = 45000;
+let pairingReadyPromise = Promise.resolve(false);
+let pairingReadyResolver = null;
 
+const PAIRING_CACHE_TIME = 45000;
+const PAIRING_READY_TIMEOUT = 20000;
+
+// Préparer l'attente du socket WhatsApp
+function resetPairingReadiness() {
+    pairingReadyPromise = new Promise(resolve => {
+        pairingReadyResolver = resolve;
+    });
+}
+
+// Attendre que Baileys soit prêt
+async function waitForPairingReady() {
+    let timeout;
+
+    try {
+        return await Promise.race([
+            pairingReadyPromise,
+            new Promise(resolve => {
+                timeout = setTimeout(
+                    () => resolve(false),
+                    PAIRING_READY_TIMEOUT
+                );
+            })
+        ]);
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+// API PAIRING
 app.get('/api/pairing', async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
@@ -57,7 +89,7 @@ app.get('/api/pairing', async (req, res) => {
         });
     }
 
-    // Réutiliser le code déjà généré pour ce numéro
+    // Réutiliser le code déjà généré
     if (
         pairingCode &&
         pairingPhone === phone &&
@@ -66,35 +98,59 @@ app.get('/api/pairing', async (req, res) => {
         return res.json({ code: pairingCode });
     }
 
-    // Éviter plusieurs demandes simultanées
+    // Un socket ne doit pas recevoir plusieurs demandes de pairing
+    if (pairingCode && pairingPhone !== phone) {
+        return res.status(409).json({
+            error: 'ᴜɴ ᴄᴏᴅᴇ ᴇxɪsᴛᴇ ᴅᴇᴊᴀ',
+            details: 'Redémarre le service pour demander un code pour un autre numéro.'
+        });
+    }
+
+    // Éviter les demandes simultanées
     if (pairingInProgress) {
         return res.status(409).json({
             error: 'ᴅᴇᴍᴀɴᴅᴇ ᴅᴇ ᴘᴀɪʀɪɴɢ ᴇɴ ᴄᴏᴜʀs'
         });
     }
 
+    const currentSocket = waSock;
+
     pairingInProgress = (async () => {
         try {
-            if (!waSock || waSock.authState.creds.registered) {
+            console.log('[PAIRING] Attente de WhatsApp...');
+
+            // IMPORTANT : attendre l'événement QR de Baileys
+            const ready = await waitForPairingReady();
+
+            if (!ready) {
+                throw new Error('WHATSAPP_NOT_READY');
+            }
+
+            if (
+                !waSock ||
+                waSock !== currentSocket ||
+                currentSocket.authState.creds.registered
+            ) {
                 throw new Error('SESSION_NOT_AVAILABLE');
             }
 
-            const currentSocket = waSock;
+            console.log('[PAIRING] Génération du vrai code...');
 
             const code = await currentSocket.requestPairingCode(phone);
 
-            if (!code) {
+            if (!code || typeof code !== 'string') {
                 throw new Error('EMPTY_PAIRING_CODE');
             }
 
-            // Vérifier que le socket n'a pas changé pendant la demande
-            if (currentSocket !== waSock) {
+            if (waSock !== currentSocket) {
                 throw new Error('SOCKET_CHANGED');
             }
 
             pairingPhone = phone;
             pairingCode = code.match(/.{1,4}/g)?.join('-') || code;
             pairingCodeTime = Date.now();
+
+            console.log('[PAIRING] Code généré avec succès.');
 
             return pairingCode;
 
@@ -124,39 +180,44 @@ app.get('/api/pairing', async (req, res) => {
     }
 });
 
+// API QR
 app.get('/api/qr', async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
-    if (latestQR) {
-        try {
-            const qrDataUrl = await QRCode.toDataURL(latestQR);
-            return res.json({ qr: qrDataUrl });
-        } catch (error) {
-            console.log('[QR ERROR]', error);
-            return res.status(500).json({
-                error: 'QR_GENERATION_ERROR'
-            });
-        }
+    if (!latestQR) {
+        return res.json({
+            status: 'ᴇɴ ᴀᴛᴛᴇɴᴛᴇ ᴅᴜ ǫʀ...'
+        });
     }
 
-    return res.json({
-        status: 'ᴇɴ ᴀᴛᴛᴇɴᴛᴇ ᴅᴜ ǫʀ...'
-    });
+    try {
+        const qrDataUrl = await QRCode.toDataURL(latestQR);
+        return res.json({ qr: qrDataUrl });
+
+    } catch (error) {
+        console.log('[QR ERROR]', error);
+
+        return res.status(500).json({
+            error: 'QR_GENERATION_ERROR'
+        });
+    }
 });
 
+// SERVEUR EXPRESS
 app.listen(PORT, () => {
     console.log(
         `[🚀 SERVER] ᴋᴀʏsᴇᴜʀ_ᴍᴅx ʟᴀɴᴄᴇ sᴜʀ ʟᴇ ᴘᴏʀᴛ ${PORT}`
     );
 });
 
-// Telegram
+// TELEGRAM
 if (telegramBot && typeof telegramBot.launch === 'function') {
     telegramBot.launch().catch(error => {
         console.log('[TELEGRAM ERROR]', error);
     });
 }
 
+// DÉMARRAGE WHATSAPP
 async function startWhatsAppBot() {
     if (startingWhatsApp) return;
 
@@ -172,6 +233,15 @@ async function startWhatsAppBot() {
         const { state, saveCreds } =
             await useMultiFileAuthState(sessionPath);
 
+        // Réinitialiser le pairing pour cette connexion
+        latestQR = null;
+        pairingCode = null;
+        pairingPhone = null;
+        pairingCodeTime = 0;
+        pairingInProgress = null;
+
+        resetPairingReadiness();
+
         const sock = makeWASocket({
             logger: pino({ level: 'silent' }),
             printQRInTerminal: false,
@@ -183,14 +253,23 @@ async function startWhatsAppBot() {
 
         waSock = sock;
 
+        // Sauvegarder les identifiants
         sock.ev.on('creds.update', saveCreds);
 
-        sock.ev.on('connection.update', async (update) => {
+        // ÉVÉNEMENTS DE CONNEXION
+        sock.ev.on('connection.update', async update => {
             const { connection, lastDisconnect, qr } = update;
 
+            // Baileys signale que le socket est prêt
             if (qr) {
                 latestQR = qr;
-                console.log('[WHATSAPP] QR disponible.');
+
+                if (pairingReadyResolver) {
+                    pairingReadyResolver(true);
+                    pairingReadyResolver = null;
+                }
+
+                console.log('[WHATSAPP] QR disponible, socket prêt.');
             }
 
             if (connection === 'connecting') {
@@ -205,6 +284,11 @@ async function startWhatsAppBot() {
                 pairingCodeTime = 0;
                 pairingInProgress = null;
 
+                if (pairingReadyResolver) {
+                    pairingReadyResolver(false);
+                    pairingReadyResolver = null;
+                }
+
                 console.log(
                     '✅ [WHATSAPP] ᴋᴀʏsᴇᴜʀ_ᴍᴅx ᴄᴏɴɴᴇᴄᴛᴇ !'
                 );
@@ -214,7 +298,8 @@ async function startWhatsAppBot() {
                 const statusCode =
                     lastDisconnect?.error instanceof Boom
                         ? lastDisconnect.error.output?.statusCode
-                        : lastDisconnect?.error?.output?.statusCode;
+                        : lastDisconnect?.error?.output?.statusCode ||
+                          lastDisconnect?.error?.statusCode;
 
                 const shouldReconnect =
                     statusCode !== DisconnectReason.loggedOut;
@@ -235,11 +320,17 @@ async function startWhatsAppBot() {
                 pairingCodeTime = 0;
                 pairingInProgress = null;
 
+                if (pairingReadyResolver) {
+                    pairingReadyResolver(false);
+                    pairingReadyResolver = null;
+                }
+
                 if (shouldReconnect && !reconnectTimer) {
                     reconnectTimer = setTimeout(() => {
                         reconnectTimer = null;
                         startWhatsAppBot();
                     }, 3000);
+
                 } else if (!shouldReconnect) {
                     console.log(
                         '[WHATSAPP] Session déconnectée. Authentification nécessaire.'
@@ -248,7 +339,7 @@ async function startWhatsAppBot() {
             }
         });
 
-        // Réception et traitement des messages
+        // RÉCEPTION DES MESSAGES
         sock.ev.on('messages.upsert', async ({ messages }) => {
             for (const mek of messages) {
                 if (!mek.message) continue;
@@ -300,8 +391,8 @@ async function startWhatsAppBot() {
             }
         });
 
-        // Welcome & Goodbye encadrés avec icône du bot/groupe et lien chaîne
-        sock.ev.on('group-participants.update', async (update) => {
+        // WELCOME & GOODBYE
+        sock.ev.on('group-participants.update', async update => {
             const { id, participants, action } = update;
 
             try {
@@ -311,9 +402,11 @@ async function startWhatsAppBot() {
                     .profilePictureUrl(id, 'image')
                     .catch(() => 'https://i.imgur.com/1Z2x3Y1.png');
 
-                const botIcon = fs.existsSync(config.menuImage)
-                    ? fs.readFileSync(config.menuImage)
-                    : { url: groupIcon };
+                const botIcon =
+                    config.menuImage &&
+                    fs.existsSync(config.menuImage)
+                        ? fs.readFileSync(config.menuImage)
+                        : { url: groupIcon };
 
                 const adminsCount = metadata.participants.filter(
                     p => p.admin
@@ -374,6 +467,11 @@ async function startWhatsAppBot() {
 
         waSock = null;
 
+        if (pairingReadyResolver) {
+            pairingReadyResolver(false);
+            pairingReadyResolver = null;
+        }
+
         if (!reconnectTimer) {
             reconnectTimer = setTimeout(() => {
                 reconnectTimer = null;
@@ -386,4 +484,5 @@ async function startWhatsAppBot() {
     }
 }
 
+// LANCER LE BOT
 startWhatsAppBot();
