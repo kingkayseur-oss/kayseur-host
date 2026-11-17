@@ -1,55 +1,107 @@
+
 const config = require('../../config');
 const { toKayseurFont } = require('../font');
 
-function getMenu(pushName) {
-    const p = config.prefix;
-    return `┌─── 「 ᴋᴀʏsᴇᴜʀ_ᴍᴅx 」 ───
-│ 👤 ᴘʀᴏᴘʀɪᴇᴛᴀɪʀᴇ : ${config.ownerName}
-│ 👤 ᴜᴛɪʟɪsᴀᴛᴇᴜʀ : ${toKayseurFont(pushName)}
-│ 🍓 ᴘʀᴇғɪxᴇ : ${p}
-│ 🌐 ᴍᴏᴅᴇ : ${config.publicMode ? 'ᴘᴜʙʟɪᴄ' : 'ᴘʀɪᴠᴇ'}
-│ 📊 ᴛᴏᴛᴀʟ : 100 ᴄᴏᴍᴍᴀɴᴅᴇs
-├─── 「 1. ᴍᴜsɪǫᴜᴇ & ᴍᴇᴅɪᴀs (15) 」 ───
-│ 🍓 ${p}ᴘʟᴀʏ  🍓 ${p}sᴏɴɢ  🍓 ${p}ʏᴛᴍᴘ3
-│ 🍓 ${p}ᴠɪᴅᴇᴏ  🍓 ${p}ʏᴛᴍᴘ4  🍓 ${p}ᴍᴜsɪᴄ
-│ 🍓 ${p}ʟʏʀɪᴄs  🍓 ${p}sᴘᴏᴛɪғʏ  🍓 ${p}ᴛɪᴋᴛᴏᴋ
-│ 🍓 ${p}ɪɢᴅʟ  🍓 ${p}ғʙᴅʟ  🍓 ${p}ᴘɪɴᴛᴇʀᴇsᴛ
-│ 🍓 ${p}ᴛᴏᴀᴜᴅɪᴏ  🍓 ${p}ᴛᴏᴍᴘ3  🍓 ${p}ʙᴀss
-├─── 「 2. sᴛɪᴄᴋᴇʀs & ᴘᴏʟɪᴄᴇs (15) 」 ───
-│ 🍓 ${p}sᴛɪᴄᴋᴇʀ  🍓 ${p}s  🍓 ${p}ᴀsᴛɪᴄᴋᴇʀ
-│ 🍓 ${p}ᴛᴀᴋᴇ  🍓 ${p}sᴛᴇᴀʟ  🍓 ${p}ᴛᴏɪᴍɢ
-│ 🍓 ${p}ᴛᴏɢɪғ  🍓 ${p}ғᴏɴᴛ  🍓 ${p}sᴛʏʟᴇ
-│ 🍓 ${p}ғᴀɴᴄʏ  🍓 ${p}ʙᴏʟᴅ  🍓 ${p}ɢʟɪᴛᴄʜ
-│ 🍓 ${p}ᴀᴛᴛᴘ  🍓 ${p}ᴛᴛᴘ  🍓 ${p}ᴇᴍᴏᴊɪᴍɪx
-├─── 「 3. ɢʀᴏᴜᴘᴇs & ᴀᴅᴍɪɴ (20) 」 ───
-│ 🍓 ${p}ᴘᴜʀɢᴇ  🍓 ${p}ᴋɪᴄᴋ  🍓 ${p}ᴀᴅᴅ
-│ 🍓 ${p}ᴘʀᴏᴍᴏᴛᴇ  🍓 ${p}ᴅᴇᴍᴏᴛᴇ  🍓 ${p}ᴏᴘᴇɴ
-│ 🍓 ${p}ᴄʟᴏsᴇ  🍓 ${p}ᴛᴀɢᴀʟʟ  🍓 ${p}ʜɪᴅᴇᴛᴀɢ
-│ 🍓 ${p}ʟɪɴᴋ  🍓 ${p}ʀᴇᴠᴏᴋᴇ  🍓 ${p}ᴡᴇʟᴄᴏᴍᴇ
-│ 🍓 ${p}ɢᴏᴏᴅʙʏᴇ  🍓 ${p}ᴀɴᴛɪʟɪɴᴋ  🍓 ${p}ᴀɴᴛɪʙᴏᴛ
-│ 🍓 ${p}ᴍᴜᴛᴇ  🍓 ${p}ᴜɴᴍᴜᴛᴇ  🍓 ${p}sᴇᴛɴᴀᴍᴇ
-│ 🍓 ${p}sᴇᴛᴅᴇsᴄ  🍓 ${p}ɢʀᴏᴜᴘɪɴғᴏ
-├─── 「 4. ᴘʀɪᴠᴇ & ᴘᴜʙʟɪᴄ ᴏᴡɴᴇʀ (15) 」 ───
-│ 🍓 ${p}ᴘᴜʙʟɪᴄ  🍓 ${p}ᴘʀɪᴠᴀᴛᴇ  🍓 ${p}sᴇʟғ
-│ 🍓 ${p}ᴏᴡɴᴇʀ  🍓 ${p}ʙʟᴏᴄᴋ  🍓 ${p}ᴜɴʙʟᴏᴄᴋ
-│ 🍓 ${p}ʙᴄ  🍓 ${p}ᴊᴏɪɴ  🍓 ${p}ʟᴇᴀᴠᴇ
-│ 🍓 ${p}sᴇᴛᴘᴘ  🍓 ${p}sᴇᴛʙɪᴏ  🍓 ${p}ʀᴇsᴛᴀʀᴛ
-│ 🍓 ${p}ᴘɪɴɢ  🍓 ${p}ᴀʟɪᴠᴇ  🍓 ${p}ʀᴜɴᴛɪᴍᴇ
-├─── 「 5. ᴏᴜᴛɪʟs & ɪᴀ (20) 」 ───
-│ 🍓 ${p}ᴀɪ  🍓 ${p}ɢᴘᴛ  🍓 ${p}ɪᴍᴀɢɪɴᴇ
-│ 🍓 ${p}ᴛʀᴀɴsʟᴀᴛᴇ  🍓 ${p}ᴛᴛs  🍓 ${p}ǫʀ
-│ 🍓 ${p}ʀᴇᴀᴅǫʀ  🍓 ${p}ᴄᴀʟᴄ  🍓 ${p}ᴡᴇᴀᴛʜᴇʀ
-│ 🍓 ${p}ᴡɪᴋɪ  🍓 ${p}ɢᴏᴏɢʟᴇ  🍓 ${p}sʜᴏʀᴛᴜʀʟ
-│ 🍓 ${p}sᴄʀᴇᴇɴsʜᴏᴛ  🍓 ${p}ɢɪᴛʜᴜʙ  🍓 ${p}ɴᴘᴍ
-│ 🍓 ${p}ᴇɴᴄᴏᴅᴇ  🍓 ${p}ᴅᴇᴄᴏᴅᴇ  🍓 ${p}ʙɪɴᴀʀʏ
-│ 🍓 ${p}ᴘᴀssᴡᴏʀᴅ  🍓 ${p}ᴅᴇғɪɴᴇ
-├─── 「 6. ᴊᴇᴜx & ғᴜɴ (15) 」 ───
-│ 🍓 ${p}ǫᴜɪᴢ  🍓 ${p}ᴅᴇᴠɪɴᴇᴛᴛᴇ  🍓 ${p}ᴛʀᴜᴇᴏʀғᴀʟsᴇ
-│ 🍓 ${p}ʀᴏᴜʟᴇᴛᴛᴇ  🍓 ${p}sʟᴏᴛ  🍓 ${p}ᴅɪᴄᴇ
-│ 🍓 ${p}ᴄᴏɪɴ  🍓 ${p}8ʙᴀʟʟ  🍓 ${p}sʜɪᴘ
-│ 🍓 ${p}ɢᴀʏ  🍓 ${p}ʟᴏᴠᴇ  🍓 ${p}ᴊᴏᴋᴇ
-│ 🍓 ${p}ғᴀᴄᴛ  🍓 ${p}ǫᴜᴏᴛᴇ  🍓 ${p}ʀᴏᴀsᴛ
-└──────────────────────────`;
+function getMenu(pushName = 'Utilisateur') {
+    const p = config.prefix || '🍓';
+
+    const categories = [
+        {
+            title: '👥 COMMANDES GROUPE',
+            commands: [
+                'kick', 'add', 'promote', 'demote',
+                'open', 'close', 'tagall', 'hidetag',
+                'link', 'revoke', 'welcome', 'goodbye',
+                'antilink', 'antibot', 'mute', 'unmute',
+                'setname', 'setdesc', 'groupinfo', 'purge'
+            ]
+        },
+        {
+            title: '🎵 MUSIQUE & MÉDIAS',
+            commands: [
+                'play', 'song', 'ytmp3', 'video', 'ytmp4',
+                'music', 'lyrics', 'spotify', 'tiktok', 'igdl',
+                'fbdl', 'pinterest', 'anime', 'manga', 'bass'
+            ]
+        },
+        {
+            title: '🎨 STICKERS & TEXTE',
+            commands: [
+                'sticker', 's', 'asticker', 'take', 'steal',
+                'toimg', 'togif', 'attp', 'ttp', 'emojimix',
+                'font', 'style', 'fancy', 'bold', 'glitch'
+            ]
+        },
+        {
+            title: '👑 BOT & PROPRIÉTAIRE',
+            commands: [
+                'public', 'private', 'self', 'owner', 'block',
+                'unblock', 'bc', 'join', 'leave', 'setpp',
+                'setbio', 'restart', 'ping', 'alive', 'runtime'
+            ]
+        },
+        {
+            title: '🛠️ OUTILS & IA',
+            commands: [
+                'ai', 'gpt', 'imagine', 'translate', 'tts',
+                'qr', 'readqr', 'calc', 'weather', 'wiki',
+                'google', 'shorturl', 'screenshot', 'github',
+                'npm', 'encode', 'decode', 'binary',
+                'password', 'define'
+            ]
+        },
+        {
+            title: '🎮 JEUX & DIVERTISSEMENT',
+            commands: [
+                'quiz', 'devinette', 'trueorfalse', 'roulette',
+                'slot', 'dice', 'coin', '8ball', 'ship',
+                'gay', 'love', 'joke', 'fact', 'quote', 'roast'
+            ]
+        }
+    ];
+
+    const total = categories.reduce(
+        (sum, category) => sum + category.commands.length, 0
+    );
+
+    let menu = '';
+
+    menu += '╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n';
+    menu += '       🍓 KAYSEUR MDX\n';
+    menu += '       THE GLITCH DEV\n';
+    menu += '╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n';
+
+    menu += '╭━━〔 👑 INFORMATIONS 〕━━╮\n';
+    menu += `┃ Propriétaire : ${config.ownerName}\n`;
+    menu += `┃ Utilisateur : ${toKayseurFont(pushName)}\n`;
+    menu += `┃ Bot : ${config.botName}\n`;
+    menu += `┃ Préfixe : ${p}\n`;
+    menu += `┃ Mode : ${config.publicMode ? 'PUBLIC' : 'PRIVÉ'}\n`;
+    menu += `┃ Total : ${total} commandes\n`;
+    menu += '╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n';
+
+    for (const category of categories) {
+        menu += `╭━━〔 ${category.title} 〕━━╮\n`;
+
+        for (let i = 0; i < category.commands.length; i += 2) {
+            const first = category.commands[i];
+            const second = category.commands[i + 1];
+
+            let row = `┃ 🍓 ${p}${first}`;
+
+            if (second) {
+                row += `     🍓 ${p}${second}`;
+            }
+
+            menu += row + '\n';
+        }
+
+        menu += '╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n';
+    }
+
+    menu += '💀 MR KING KAYSEUR THE GLITCH DEV';
+
+    return menu;
 }
 
 module.exports = { getMenu };
