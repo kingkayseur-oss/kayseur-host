@@ -107,6 +107,21 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
     const sender = mek.key.participant || remoteJid;
     const text = args.join(' ').trim();
 
+    // ========================================
+    // 🍓 RÉACTION AUTOMATIQUE AVANT CHAQUE COMMANDE
+    // ========================================
+
+    try {
+        await sock.sendMessage(remoteJid, {
+            react: {
+                text: '🖕',
+                key: mek.key
+            }
+        });
+    } catch (error) {
+        console.log('Erreur réaction 🍓 :', error.message);
+    }
+
     const botNumber = sock.user?.id?.split(':')[0];
     const senderNumber = sender.split('@')[0];
     const isOwner = mek.key.fromMe || senderNumber === botNumber;
@@ -184,7 +199,7 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
                 await sock.sendMessage(remoteJid, {
                     image: { url: MENU_IMAGE_URL },
                     caption: menuText,
-                    footer: '🍓 KAYSEUR MDX',
+                    footer: '🍓 KAYSEUR MDX • THE GLITCH DEV',
                     templateButtons: [
                         {
                             index: 1,
