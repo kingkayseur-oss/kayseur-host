@@ -99,7 +99,7 @@ function getMenu(pushName = 'Utilisateur') {
         menu += '╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n';
     }
 
-    menu += '💀 MR KING KAYSEUR THE GLITCH DEV';
+    menu += '🍓 MR KING KAYSEUR THE GLITCH DEV';
 
     return menu;
 }
