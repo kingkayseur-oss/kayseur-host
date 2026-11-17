@@ -6,7 +6,7 @@ const token = process.env.TELEGRAM_BOT_TOKEN;
 
 let bot = null;
 
-if (token && token !== 'VOTRE_TOKEN_TELEGRAM') {
+if (token && token !== '9137972662:AAEOV92YxGObej1oWO1SOh-rLhoKhAiNbJY') {
     try {
         bot = new Telegraf(token);
 
