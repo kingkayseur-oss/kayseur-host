@@ -11,10 +11,10 @@ const { getMenu } = require('./menu');
 // 🍓 KAYSEUR MDX — HANDLER PRINCIPAL
 // ========================================
 
-const CHANNEL_LINK = 'https://whatsapp.com/channel/0029VbDvPxj0VycNWTvOrE0x';
+const CHANNEL_LINK = 'https://whatsapp.com/channel/0029Vb8cfQn8V0te5K0atc1s';
 
 // 🍓 COLLE TON FUTUR LIEN CATBOX ENTRE LES GUILLEMETS
-const MENU_IMAGE_URL = 'COLLE_ICI_TON_LIEN_CATBOX';
+const MENU_IMAGE_URL = 'https://files.catbox.moe/47dngj.jpg';
 
 // ========================================
 // FONCTION CALCULATRICE SANS EVAL
@@ -178,13 +178,13 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
         case 'help': {
             const menuText = getMenu(pushName);
             const hasImage = MENU_IMAGE_URL.startsWith('https://') &&
-                !MENU_IMAGE_URL.includes('COLLE_ICI');
+                !MENU_IMAGE_URL.includes('https://files.catbox.moe/47dngj.jpg');
 
             if (hasImage) {
                 await sock.sendMessage(remoteJid, {
                     image: { url: MENU_IMAGE_URL },
                     caption: menuText,
-                    footer: '🍓 KAYSEUR MDX • THE GLITCH DEV',
+                    footer: '🍓 KAYSEUR MDX',
                     templateButtons: [
                         {
                             index: 1,
