@@ -2,22 +2,14 @@
 const config = require('../../config');
 const { toKayseurFont } = require('../font');
 
+const CHANNEL_LINK = 'https://whatsapp.com/channel/0029VbDvPxj0VycNWTvOrE0x';
+
 function getMenu(pushName = 'Utilisateur') {
     const p = config.prefix || '🍓';
 
     const categories = [
         {
-            title: '👥 COMMANDES GROUPE',
-            commands: [
-                'kick', 'add', 'promote', 'demote',
-                'open', 'close', 'tagall', 'hidetag',
-                'link', 'revoke', 'welcome', 'goodbye',
-                'antilink', 'antibot', 'mute', 'unmute',
-                'setname', 'setdesc', 'groupinfo', 'purge'
-            ]
-        },
-        {
-            title: '🎵 MUSIQUE & MÉDIAS',
+            title: '01 • MUSIQUE & MÉDIAS',
             commands: [
                 'play', 'song', 'ytmp3', 'video', 'ytmp4',
                 'music', 'lyrics', 'spotify', 'tiktok', 'igdl',
@@ -25,7 +17,7 @@ function getMenu(pushName = 'Utilisateur') {
             ]
         },
         {
-            title: '🎨 STICKERS & TEXTE',
+            title: '02 • STICKERS & ÉCRITURE',
             commands: [
                 'sticker', 's', 'asticker', 'take', 'steal',
                 'toimg', 'togif', 'attp', 'ttp', 'emojimix',
@@ -33,7 +25,16 @@ function getMenu(pushName = 'Utilisateur') {
             ]
         },
         {
-            title: '👑 BOT & PROPRIÉTAIRE',
+            title: '03 • GROUPES & ADMINISTRATION',
+            commands: [
+                'kick', 'add', 'promote', 'demote', 'open',
+                'close', 'tagall', 'hidetag', 'link', 'revoke',
+                'welcome', 'goodbye', 'antilink', 'antibot', 'mute',
+                'unmute', 'setname', 'setdesc', 'groupinfo', 'purge'
+            ]
+        },
+        {
+            title: '04 • BOT & PROPRIÉTAIRE',
             commands: [
                 'public', 'private', 'self', 'owner', 'block',
                 'unblock', 'bc', 'join', 'leave', 'setpp',
@@ -41,65 +42,73 @@ function getMenu(pushName = 'Utilisateur') {
             ]
         },
         {
-            title: '🛠️ OUTILS & IA',
+            title: '05 • OUTILS & INTELLIGENCE ARTIFICIELLE',
             commands: [
                 'ai', 'gpt', 'imagine', 'translate', 'tts',
                 'qr', 'readqr', 'calc', 'weather', 'wiki',
-                'google', 'shorturl', 'screenshot', 'github',
-                'npm', 'encode', 'decode', 'binary',
-                'password', 'define'
+                'google', 'shorturl', 'screenshot', 'github', 'npm',
+                'encode', 'decode', 'binary', 'password', 'define'
             ]
         },
         {
-            title: '🎮 JEUX & DIVERTISSEMENT',
+            title: '06 • JEUX & DIVERTISSEMENT',
             commands: [
-                'quiz', 'devinette', 'trueorfalse', 'roulette',
-                'slot', 'dice', 'coin', '8ball', 'ship',
-                'gay', 'love', 'joke', 'fact', 'quote', 'roast'
+                'quiz', 'devinette', 'trueorfalse', 'roulette', 'slot',
+                'dice', 'coin', '8ball', 'ship', 'gay',
+                'love', 'joke', 'fact', 'quote', 'roast'
             ]
         }
     ];
 
     const total = categories.reduce(
-        (sum, category) => sum + category.commands.length, 0
+        (sum, category) => sum + category.commands.length,
+        0
     );
 
     let menu = '';
 
-    menu += '╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n';
-    menu += '       🍓 KAYSEUR MDX\n';
-    menu += '       THE GLITCH DEV\n';
-    menu += '╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n';
-
-    menu += '╭━━〔 👑 INFORMATIONS 〕━━╮\n';
-    menu += `┃ Propriétaire : ${config.ownerName}\n`;
-    menu += `┃ Utilisateur : ${toKayseurFont(pushName)}\n`;
-    menu += `┃ Bot : ${config.botName}\n`;
-    menu += `┃ Préfixe : ${p}\n`;
-    menu += `┃ Mode : ${config.publicMode ? 'PUBLIC' : 'PRIVÉ'}\n`;
-    menu += `┃ Total : ${total} commandes\n`;
+    menu += '╭━━━━━━━━━━━━━━━━━━━━━━╮\n';
+    menu += '       🍓  K A Y S E U R  M D X\n';
     menu += '╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n';
 
+    menu += '┏━━━━━━━━〔 👑 PROFIL 〕━━━━━━━━┓\n';
+    menu += `┃ 👑 Propriétaire : ${config.ownerName}\n`;
+    menu += `┃ 👤 Utilisateur : ${toKayseurFont(pushName)}\n`;
+    menu += `┃ 🤖 Bot : ${config.botName}\n`;
+    menu += `┃ 🍓 Préfixe : ${p}\n`;
+    menu += `┃ 🌐 Mode : ${config.publicMode ? 'PUBLIC' : 'PRIVÉ'}\n`;
+    menu += `┃ 📚 Commandes : ${total}\n`;
+    menu += '┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n';
+
     for (const category of categories) {
-        menu += `╭━━〔 ${category.title} 〕━━╮\n`;
+        menu += `┏━━〔 ${category.title} 〕━━┓\n`;
 
         for (let i = 0; i < category.commands.length; i += 2) {
             const first = category.commands[i];
             const second = category.commands[i + 1];
 
-            let row = `┃ 🍓 ${p}${first}`;
+            let line = `┃ 🍓 ${p}${first}`;
 
             if (second) {
-                row += `     🍓 ${p}${second}`;
+                line += `   🍓 ${p}${second}`;
             }
 
-            menu += row + '\n';
+            menu += line + '\n';
         }
 
-        menu += '╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n';
+        menu += '┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n';
     }
 
-    menu += '🍓 MR KING KAYSEUR THE GLITCH DEV';
+    menu += '┏━━━━━━━━〔 📢 NOS RÉSEAUX 〕━━━━━━━━┓\n';
+    menu += `┃ WhatsApp : ${CHANNEL_LINK}\n`;
+    menu += '> ┃ Développeur : MR KING KAYSEUR\n';
+    menu += '┃ THE GLITCH DEV 🍓\n';
+    menu += '┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n';
+
+    menu += '╭━━━━━━━━━━━━━━━━━━━━━━╮\n';
+    menu += '     ⚡ UNE FAMILLE • UNE FORCE\n';
+    menu += '        UNE DESTINÉE ⚡\n';
+    menu += '╰━━━━━━━━━━━━━━━━━━━━━━╯';
 
     return menu;
 }
