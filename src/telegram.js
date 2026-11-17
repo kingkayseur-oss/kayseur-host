@@ -20,7 +20,7 @@ if (token && token !== '9137972662:AAEOV92YxGObej1oWO1SOh-rLhoKhAiNbJY') {
                                 text: "🔗 ᴏᴜᴠʀɪʀ ʟᴇ sɪᴛᴇ ᴅᴇ ᴘᴀɪʀɪɴɢ",
                                 url: process.env.RENDER_EXTERNAL_URL ||
                                      process.env.VERCEL_URL ||
-                                     "https://kayseur-mdx-pair.vercel.app"
+                                     "https://kayseur-mdx-pair.onrender.com"
                             }],
                             [{
                                 text: "📢 ᴠᴏɪʀ ʟᴀ ᴄʜᴀɪɴᴇ",
