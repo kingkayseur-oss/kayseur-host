@@ -1,116 +1,141 @@
-
 const config = require('../../config');
-const { toKayseurFont } = require('../font');
 
-const CHANNEL_LINK = 'https://whatsapp.com/channel/0029VbDvPxj0VycNWTvOrE0x';
+function getMenu(pushName) {
+    const ownerName = config.ownerName || 'MR KING KAYSEUR';
+    const prefix = config.prefix || '🍓';
 
-function getMenu(pushName = 'Utilisateur') {
-    const p = config.prefix || '🍓';
+    return `┌───⟞ ⟨ KAYSEUR MDX ⟩
+│
+│  m> OWNER: ${ownerName}
+│  m> PREFIX: ${prefix}
+│  m> CMDS: 100
+│  m> VERSION: v1
+│
+└───⟞ ⟨ 
 
-    const categories = [
-        {
-            title: '01 • MUSIQUE & MÉDIAS',
-            commands: [
-                'play', 'song', 'ytmp3', 'video', 'ytmp4',
-                'music', 'lyrics', 'spotify', 'tiktok', 'igdl',
-                'fbdl', 'pinterest', 'anime', 'manga', 'bass'
-            ]
-        },
-        {
-            title: '02 • STICKERS & ÉCRITURE',
-            commands: [
-                'sticker', 's', 'asticker', 'take', 'steal',
-                'toimg', 'togif', 'attp', 'ttp', 'emojimix',
-                'font', 'style', 'fancy', 'bold', 'glitch'
-            ]
-        },
-        {
-            title: '03 • GROUPES & ADMINISTRATION',
-            commands: [
-                'kick', 'add', 'promote', 'demote', 'open',
-                'close', 'tagall', 'hidetag', 'link', 'revoke',
-                'welcome', 'goodbye', 'antilink', 'antibot', 'mute',
-                'unmute', 'setname', 'setdesc', 'groupinfo', 'purge'
-            ]
-        },
-        {
-            title: '04 • BOT & PROPRIÉTAIRE',
-            commands: [
-                'public', 'private', 'self', 'owner', 'block',
-                'unblock', 'bc', 'join', 'leave', 'setpp',
-                'setbio', 'restart', 'ping', 'alive', 'runtime'
-            ]
-        },
-        {
-            title: '05 • OUTILS & INTELLIGENCE ARTIFICIELLE',
-            commands: [
-                'ai', 'gpt', 'imagine', 'translate', 'tts',
-                'qr', 'readqr', 'calc', 'weather', 'wiki',
-                'google', 'shorturl', 'screenshot', 'github', 'npm',
-                'encode', 'decode', 'binary', 'password', 'define'
-            ]
-        },
-        {
-            title: '06 • JEUX & DIVERTISSEMENT',
-            commands: [
-                'quiz', 'devinette', 'trueorfalse', 'roulette', 'slot',
-                'dice', 'coin', '8ball', 'ship', 'gay',
-                'love', 'joke', 'fact', 'quote', 'roast'
-            ]
-        }
-    ];
+*_GROUP MENU (20)_*
+┌───────⟞
+│ ❖ ${prefix}add
+│ ❖ ${prefix}kick
+│ ❖ ${prefix}kickall
+│ ❖ ${prefix}promote
+│ ❖ ${prefix}demote
+│ ❖ ${prefix}open
+│ ❖ ${prefix}close
+│ ❖ ${prefix}mute
+│ ❖ ${prefix}unmute
+│ ❖ ${prefix}tagall
+│ ❖ ${prefix}hidetag
+│ ❖ ${prefix}link
+│ ❖ ${prefix}revoke
+│ ❖ ${prefix}setname
+│ ❖ ${prefix}setdesc
+│ ❖ ${prefix}ppgroup
+│ ❖ ${prefix}groupinfo
+│ ❖ ${prefix}del
+│ ❖ ${prefix}antilink
+│ ❖ ${prefix}antibot
+└───────⟞
 
-    const total = categories.reduce(
-        (sum, category) => sum + category.commands.length,
-        0
-    );
+*_DOWNLOAD & MEDIA (20)_*
+┌───────⟞
+│ ❖ ${prefix}play
+│ ❖ ${prefix}song
+│ ❖ ${prefix}ytmp3
+│ ❖ ${prefix}video
+│ ❖ ${prefix}ytmp4
+│ ❖ ${prefix}tiktok
+│ ❖ ${prefix}igdl
+│ ❖ ${prefix}fbdl
+│ ❖ ${prefix}spotify
+│ ❖ ${prefix}pinterest
+│ ❖ ${prefix}anime
+│ ❖ ${prefix}manga
+│ ❖ ${prefix}lyrics
+│ ❖ ${prefix}yts
+│ ❖ ${prefix}apk
+│ ❖ ${prefix}mediafire
+│ ❖ ${prefix}gdrive
+│ ❖ ${prefix}twitter
+│ ❖ ${prefix}snapchat
+│ ❖ ${prefix}sound
+└───────⟞
 
-    let menu = '';
+*_AI & TOOLS (20)_*
+┌───────⟞
+│ ❖ ${prefix}ai
+│ ❖ ${prefix}gpt
+│ ❖ ${prefix}gemini
+│ ❖ ${prefix}imagine
+│ ❖ ${prefix}translate
+│ ❖ ${prefix}tts
+│ ❖ ${prefix}calc
+│ ❖ ${prefix}qr
+│ ❖ ${prefix}readqr
+│ ❖ ${prefix}google
+│ ❖ ${prefix}wiki
+│ ❖ ${prefix}define
+│ ❖ ${prefix}weather
+│ ❖ ${prefix}shorturl
+│ ❖ ${prefix}screenshot
+│ ❖ ${prefix}github
+│ ❖ ${prefix}npm
+│ ❖ ${prefix}encode
+│ ❖ ${prefix}decode
+│ ❖ ${prefix}password
+└───────⟞
 
-    menu += '╭━━━━━━━━━━━━━━━━━━━━━━╮\n';
-    menu += '       🍓  K A Y S E U R  M D X\n';
-    menu += '╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n';
+*_STICKER & STYLE (15)_*
+┌───────⟞
+│ ❖ ${prefix}sticker
+│ ❖ ${prefix}s
+│ ❖ ${prefix}asticker
+│ ❖ ${prefix}take
+│ ❖ ${prefix}steal
+│ ❖ ${prefix}toimg
+│ ❖ ${prefix}togif
+│ ❖ ${prefix}attp
+│ ❖ ${prefix}ttp
+│ ❖ ${prefix}emojimix
+│ ❖ ${prefix}font
+│ ❖ ${prefix}style
+│ ❖ ${prefix}fancy
+│ ❖ ${prefix}bold
+│ ❖ ${prefix}glitch
+└───────⟞
 
-    menu += '┏━━━━━━━━〔 👑 PROFIL 〕━━━━━━━━┓\n';
-    menu += `┃ 👑 Propriétaire : ${config.ownerName}\n`;
-    menu += `┃ 👤 Utilisateur : ${toKayseurFont(pushName)}\n`;
-    menu += `┃ 🤖 Bot : ${config.botName}\n`;
-    menu += `┃ 🍓 Préfixe : ${p}\n`;
-    menu += `┃ 🌐 Mode : ${config.publicMode ? 'PUBLIC' : 'PRIVÉ'}\n`;
-    menu += `┃ 📚 Commandes : ${total}\n`;
-    menu += '┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n';
+*_GAMES & FUN (15)_*
+┌───────⟞
+│ ❖ ${prefix}dice
+│ ❖ ${prefix}coin
+│ ❖ ${prefix}8ball
+│ ❖ ${prefix}ship
+│ ❖ ${prefix}love
+│ ❖ ${prefix}gay
+│ ❖ ${prefix}quiz
+│ ❖ ${prefix}devinette
+│ ❖ ${prefix}trueorfalse
+│ ❖ ${prefix}roulette
+│ ❖ ${prefix}slot
+│ ❖ ${prefix}joke
+│ ❖ ${prefix}fact
+│ ❖ ${prefix}quote
+│ ❖ ${prefix}roast
+└───────⟞
 
-    for (const category of categories) {
-        menu += `┏━━〔 ${category.title} 〕━━┓\n`;
-
-        for (let i = 0; i < category.commands.length; i += 2) {
-            const first = category.commands[i];
-            const second = category.commands[i + 1];
-
-            let line = `┃ 🍓 ${p}${first}`;
-
-            if (second) {
-                line += `   🍓 ${p}${second}`;
-            }
-
-            menu += line + '\n';
-        }
-
-        menu += '┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n';
-    }
-
-    menu += '┏━━━━━━━━〔 📢 NOS RÉSEAUX 〕━━━━━━━━┓\n';
-    menu += `┃ WhatsApp : ${CHANNEL_LINK}\n`;
-    menu += '> ┃ Développeur : MR KING KAYSEUR\n';
-    menu += '┃ THE GLITCH DEV 🍓\n';
-    menu += '┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n';
-
-    menu += '╭━━━━━━━━━━━━━━━━━━━━━━╮\n';
-    menu += '     ⚡ UNE FAMILLE • UNE FORCE\n';
-    menu += '        UNE DESTINÉE ⚡\n';
-    menu += '╰━━━━━━━━━━━━━━━━━━━━━━╯';
-
-    return menu;
+*_OWNER & BOT (10)_*
+┌───────⟞
+│ ❖ ${prefix}menu
+│ ❖ ${prefix}help
+│ ❖ ${prefix}ping
+│ ❖ ${prefix}alive
+│ ❖ ${prefix}runtime
+│ ❖ ${prefix}owner
+│ ❖ ${prefix}public
+│ ❖ ${prefix}private
+│ ❖ ${prefix}block
+│ ❖ ${prefix}unblock
+└───────⟞`;
 }
 
 module.exports = { getMenu };
