@@ -1,4 +1,3 @@
-
 const express = require('express');
 const {
     default: makeWASocket,
@@ -339,7 +338,7 @@ async function startWhatsAppBot() {
             }
         });
 
-        // RÉCEPTION DES MESSAGES
+        // RÉCEPTION DES MESSAGES (CORRIGÉ POUR PRENDRE EN COMPTE LE PRÉFIXE ET LA FRAISE 🍓)
         sock.ev.on('messages.upsert', async ({ messages }) => {
             for (const mek of messages) {
                 if (!mek.message) continue;
@@ -361,15 +360,21 @@ async function startWhatsAppBot() {
                         ? mek.message.videoMessage.caption
                         : '';
 
-                if (!body || !body.startsWith(config.prefix)) {
+                if (!body) continue;
+
+                const cleanBody = body.trim();
+                const activePrefix = config.prefix || '.';
+                const hasValidPrefix = cleanBody.startsWith(activePrefix) || cleanBody.startsWith('🍓');
+
+                if (!hasValidPrefix) {
                     continue;
                 }
 
-                const args = body
-                    .slice(config.prefix.length)
-                    .trim()
-                    .split(/ +/);
+                const rawCommandText = cleanBody.startsWith('🍓') 
+                    ? cleanBody.slice(1).trim() 
+                    : cleanBody.slice(activePrefix.length).trim();
 
+                const args = rawCommandText.split(/ +/);
                 const command = args.shift()?.toLowerCase();
 
                 if (!command) continue;
@@ -438,7 +443,7 @@ async function startWhatsAppBot() {
                         const goodbyeCaption = boxText('ɢᴏᴏᴅʙʏᴇ', [
                             `ᴍᴇᴍʙʀᴇ : @${user.split('@')[0]}`,
                             `ᴀᴅᴍɪɴs ʀᴇsᴛᴀɴᴛs : ${adminsCount}`,
-                            `ᴅᴇsᴄʀɪᴘᴛɪᴏɴ : ᴀᴜ ʀᴇᴠᴏɪʀ ᴇᴛ ʙᴏɴɴᴇ ᴄᴏɴᴛɪɴᴜᴀᴛɪᴏɴ !`,
+                            `ᴅᴇsᴄʀɪᴘᴛɪᴏɴ : ᴀᴜ ʀᴇᴠᴏɪʀ ᴇᴛ ʙᴏɴɴᴇ ᴄᴏɴᴛɪɴᴜᴀᴛɪ𝙤ɴ !`,
                             `ᴄʜᴀɪɴᴇ : ${config.channelLink}`
                         ]);
 
