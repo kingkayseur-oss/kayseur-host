@@ -1,4 +1,6 @@
 
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 const yts = require('yt-search');
 const config = require('../../config');
@@ -12,18 +14,19 @@ const { getMenu } = require('./menu');
 // ========================================
 
 const CHANNEL_LINK = 'https://whatsapp.com/channel/0029Vb8cfQn8V0te5K0atc1s';
-const MENU_IMAGE_URL = 'https://files.catbox.moe/47dngj.jpg';
+
+// Image directement à la racine du projet
+const MENU_IMAGE = path.join(__dirname, '../../kayseur-mdx.jpg');
 
 // ========================================
 // ENVOI IMAGE + BOUTON CHAÎNE
-// Le bouton est intégré au même message.
 // ========================================
 
 async function sendMediaWithButton(sock, remoteJid, mek, textContent) {
     // Première tentative : image + bouton intégré
     try {
         await sock.sendMessage(remoteJid, {
-            image: { url: MENU_IMAGE_URL },
+            image: fs.readFileSync(MENU_IMAGE),
             caption: textContent,
             footer: '🍓 KAYSEUR MDX • THE GLITCH DEV',
             templateButtons: [
@@ -45,7 +48,7 @@ async function sendMediaWithButton(sock, remoteJid, mek, textContent) {
     // Deuxième tentative : image avec lien écrit dans la légende
     try {
         await sock.sendMessage(remoteJid, {
-            image: { url: MENU_IMAGE_URL },
+            image: fs.readFileSync(MENU_IMAGE),
             caption: `${textContent}\n\n📢 VOIR LA CHAÎNE :\n${CHANNEL_LINK}`
         }, { quoted: mek });
 
@@ -54,7 +57,7 @@ async function sendMediaWithButton(sock, remoteJid, mek, textContent) {
         console.log('Erreur envoi image :', error.message);
     }
 
-    // Dernier recours : texte seul, pour ne pas laisser la commande sans réponse
+    // Dernier recours : texte seul
     try {
         await sock.sendMessage(remoteJid, {
             text: `${textContent}\n\n📢 VOIR LA CHAÎNE :\n${CHANNEL_LINK}`
