@@ -1,155 +1,55 @@
-
 const config = require('../../config');
+const { toKayseurFont } = require('../font');
 
 function getMenu(pushName) {
-    const ownerName = config.ownerName || 'MR KING KAYSEUR THE GLITCH DEV';
-    const prefix = config.prefix || '!';
-    const userName = pushName || 'Utilisateur';
-
-    return `> ╭━━━━━━━━━━━━━━━━━━━━━━╮
-> ┃       *💀 KAYSEUR MDX*
-> ╰━━━━━━━━━━━━━━━━━━━━━━╯
-
-┏━━〔 👑 BOT INFORMATION 〕
-┃
-┃ ❖ OWNER : ${ownerName}
-┃ ❖ USER : ${userName}
-┃ ❖ PREFIX : ${prefix}
-┃ ❖ CMDS : 100
-┃ ❖ VERSION : v1
-┃ ❖ STATUS : ONLINE 🟢
-┃
-┗━━━━━━━━━━━━━━━━━━━━━━
-
-╭━━〔 👥 GROUP MENU (20) 〕
-┃
-┃ ❖ ${prefix}add
-┃ ❖ ${prefix}kick
-┃ ❖ ${prefix}purge
-┃ ❖ ${prefix}promote
-┃ ❖ ${prefix}demote
-┃ ❖ ${prefix}open
-┃ ❖ ${prefix}close
-┃ ❖ ${prefix}mute
-┃ ❖ ${prefix}unmute
-┃ ❖ ${prefix}tagall
-┃ ❖ ${prefix}hidetag
-┃ ❖ ${prefix}link
-┃ ❖ ${prefix}revoke
-┃ ❖ ${prefix}setname
-┃ ❖ ${prefix}setdesc
-┃ ❖ ${prefix}ppgroup
-┃ ❖ ${prefix}groupinfo
-┃ ❖ ${prefix}del
-┃ ❖ ${prefix}antilink
-┃ ❖ ${prefix}antibot
-╰━━━━━━━━━━━━━━━━━━━━━━
-
-╭━━〔 📥 DOWNLOAD & MEDIA (20) 〕
-┃
-┃ ❖ ${prefix}play
-┃ ❖ ${prefix}song
-┃ ❖ ${prefix}ytmp3
-┃ ❖ ${prefix}video
-┃ ❖ ${prefix}ytmp4
-┃ ❖ ${prefix}tiktok
-┃ ❖ ${prefix}igdl
-┃ ❖ ${prefix}fbdl
-┃ ❖ ${prefix}spotify
-┃ ❖ ${prefix}pinterest
-┃ ❖ ${prefix}anime
-┃ ❖ ${prefix}manga
-┃ ❖ ${prefix}lyrics
-┃ ❖ ${prefix}yts
-┃ ❖ ${prefix}apk
-┃ ❖ ${prefix}mediafire
-┃ ❖ ${prefix}gdrive
-┃ ❖ ${prefix}twitter
-┃ ❖ ${prefix}snapchat
-┃ ❖ ${prefix}sound
-╰━━━━━━━━━━━━━━━━━━━━━━
-
-╭━━〔 🧠 AI & TOOLS (20) 〕
-┃
-┃ ❖ ${prefix}ai
-┃ ❖ ${prefix}gpt
-┃ ❖ ${prefix}gemini
-┃ ❖ ${prefix}imagine
-┃ ❖ ${prefix}translate
-┃ ❖ ${prefix}tts
-┃ ❖ ${prefix}calc
-┃ ❖ ${prefix}qr
-┃ ❖ ${prefix}readqr
-┃ ❖ ${prefix}google
-┃ ❖ ${prefix}wiki
-┃ ❖ ${prefix}define
-┃ ❖ ${prefix}weather
-┃ ❖ ${prefix}shorturl
-┃ ❖ ${prefix}screenshot
-┃ ❖ ${prefix}github
-┃ ❖ ${prefix}npm
-┃ ❖ ${prefix}encode
-┃ ❖ ${prefix}decode
-┃ ❖ ${prefix}password
-╰━━━━━━━━━━━━━━━━━━━━━━
-
-╭━━〔 🎨 STICKER & STYLE (15) 〕
-┃
-┃ ❖ ${prefix}sticker
-┃ ❖ ${prefix}s
-┃ ❖ ${prefix}asticker
-┃ ❖ ${prefix}take
-┃ ❖ ${prefix}steal
-┃ ❖ ${prefix}toimg
-┃ ❖ ${prefix}togif
-┃ ❖ ${prefix}attp
-┃ ❖ ${prefix}ttp
-┃ ❖ ${prefix}emojimix
-┃ ❖ ${prefix}font
-┃ ❖ ${prefix}style
-┃ ❖ ${prefix}fancy
-┃ ❖ ${prefix}bold
-┃ ❖ ${prefix}glitch
-╰━━━━━━━━━━━━━━━━━━━━━━
-
-╭━━〔 🎮 GAMES & FUN (15) 〕
-┃
-┃ ❖ ${prefix}dice
-┃ ❖ ${prefix}coin
-┃ ❖ ${prefix}8ball
-┃ ❖ ${prefix}ship
-┃ ❖ ${prefix}love
-┃ ❖ ${prefix}gay
-┃ ❖ ${prefix}quiz
-┃ ❖ ${prefix}devinette
-┃ ❖ ${prefix}trueorfalse
-┃ ❖ ${prefix}roulette
-┃ ❖ ${prefix}slot
-┃ ❖ ${prefix}joke
-┃ ❖ ${prefix}fact
-┃ ❖ ${prefix}quote
-┃ ❖ ${prefix}roast
-╰━━━━━━━━━━━━━━━━━━━━━━
-
-╭━━〔 👑 OWNER & BOT (10) 〕
-┃
-┃ ❖ ${prefix}menu
-┃ ❖ ${prefix}help
-┃ ❖ ${prefix}ping
-┃ ❖ ${prefix}alive
-┃ ❖ ${prefix}runtime
-┃ ❖ ${prefix}owner
-┃ ❖ ${prefix}public
-┃ ❖ ${prefix}private
-┃ ❖ ${prefix}block
-┃ ❖ ${prefix}unblock
-╰━━━━━━━━━━━━━━━━━━━━━━
-
-> ╭━━━━━━━━━━━━━━━━━━━━━━╮
-> ┃ 🍓 KAYSEUR MDX
-> ┃ ⚡ THE GLITCH DEV
-> ┃ 📢 WHATSAPP CHANNEL
-> ╰━━━━━━━━━━━━━━━━━━━━━━`;
+    const p = config.prefix;
+    return `┌─── 「 ᴋᴀʏsᴇᴜʀ_ᴍᴅx 」 ───
+│ 👤 ᴘʀᴏᴘʀɪᴇᴛᴀɪʀᴇ : ${config.ownerName}
+│ 👤 ᴜᴛɪʟɪsᴀᴛᴇᴜʀ : ${toKayseurFont(pushName)}
+│ 🍓 ᴘʀᴇғɪxᴇ : ${p}
+│ 🌐 ᴍᴏᴅᴇ : ${config.publicMode ? 'ᴘᴜʙʟɪᴄ' : 'ᴘʀɪᴠᴇ'}
+│ 📊 ᴛᴏᴛᴀʟ : 100 ᴄᴏᴍᴍᴀɴᴅᴇs
+├─── 「 1. ᴍᴜsɪǫᴜᴇ & ᴍᴇᴅɪᴀs (15) 」 ───
+│ 🍓 ${p}ᴘʟᴀʏ  🍓 ${p}sᴏɴɢ  🍓 ${p}ʏᴛᴍᴘ3
+│ 🍓 ${p}ᴠɪᴅᴇᴏ  🍓 ${p}ʏᴛᴍᴘ4  🍓 ${p}ᴍᴜsɪᴄ
+│ 🍓 ${p}ʟʏʀɪᴄs  🍓 ${p}sᴘᴏᴛɪғʏ  🍓 ${p}ᴛɪᴋᴛᴏᴋ
+│ 🍓 ${p}ɪɢᴅʟ  🍓 ${p}ғʙᴅʟ  🍓 ${p}ᴘɪɴᴛᴇʀᴇsᴛ
+│ 🍓 ${p}ᴛᴏᴀᴜᴅɪᴏ  🍓 ${p}ᴛᴏᴍᴘ3  🍓 ${p}ʙᴀss
+├─── 「 2. sᴛɪᴄᴋᴇʀs & ᴘᴏʟɪᴄᴇs (15) 」 ───
+│ 🍓 ${p}sᴛɪᴄᴋᴇʀ  🍓 ${p}s  🍓 ${p}ᴀsᴛɪᴄᴋᴇʀ
+│ 🍓 ${p}ᴛᴀᴋᴇ  🍓 ${p}sᴛᴇᴀʟ  🍓 ${p}ᴛᴏɪᴍɢ
+│ 🍓 ${p}ᴛᴏɢɪғ  🍓 ${p}ғᴏɴᴛ  🍓 ${p}sᴛʏʟᴇ
+│ 🍓 ${p}ғᴀɴᴄʏ  🍓 ${p}ʙᴏʟᴅ  🍓 ${p}ɢʟɪᴛᴄʜ
+│ 🍓 ${p}ᴀᴛᴛᴘ  🍓 ${p}ᴛᴛᴘ  🍓 ${p}ᴇᴍᴏᴊɪᴍɪx
+├─── 「 3. ɢʀᴏᴜᴘᴇs & ᴀᴅᴍɪɴ (20) 」 ───
+│ 🍓 ${p}ᴘᴜʀɢᴇ  🍓 ${p}ᴋɪᴄᴋ  🍓 ${p}ᴀᴅᴅ
+│ 🍓 ${p}ᴘʀᴏᴍᴏᴛᴇ  🍓 ${p}ᴅᴇᴍᴏᴛᴇ  🍓 ${p}ᴏᴘᴇɴ
+│ 🍓 ${p}ᴄʟᴏsᴇ  🍓 ${p}ᴛᴀɢᴀʟʟ  🍓 ${p}ʜɪᴅᴇᴛᴀɢ
+│ 🍓 ${p}ʟɪɴᴋ  🍓 ${p}ʀᴇᴠᴏᴋᴇ  🍓 ${p}ᴡᴇʟᴄᴏᴍᴇ
+│ 🍓 ${p}ɢᴏᴏᴅʙʏᴇ  🍓 ${p}ᴀɴᴛɪʟɪɴᴋ  🍓 ${p}ᴀɴᴛɪʙᴏᴛ
+│ 🍓 ${p}ᴍᴜᴛᴇ  🍓 ${p}ᴜɴᴍᴜᴛᴇ  🍓 ${p}sᴇᴛɴᴀᴍᴇ
+│ 🍓 ${p}sᴇᴛᴅᴇsᴄ  🍓 ${p}ɢʀᴏᴜᴘɪɴғᴏ
+├─── 「 4. ᴘʀɪᴠᴇ & ᴘᴜʙʟɪᴄ ᴏᴡɴᴇʀ (15) 」 ───
+│ 🍓 ${p}ᴘᴜʙʟɪᴄ  🍓 ${p}ᴘʀɪᴠᴀᴛᴇ  🍓 ${p}sᴇʟғ
+│ 🍓 ${p}ᴏᴡɴᴇʀ  🍓 ${p}ʙʟᴏᴄᴋ  🍓 ${p}ᴜɴʙʟᴏᴄᴋ
+│ 🍓 ${p}ʙᴄ  🍓 ${p}ᴊᴏɪɴ  🍓 ${p}ʟᴇᴀᴠᴇ
+│ 🍓 ${p}sᴇᴛᴘᴘ  🍓 ${p}sᴇᴛʙɪᴏ  🍓 ${p}ʀᴇsᴛᴀʀᴛ
+│ 🍓 ${p}ᴘɪɴɢ  🍓 ${p}ᴀʟɪᴠᴇ  🍓 ${p}ʀᴜɴᴛɪᴍᴇ
+├─── 「 5. ᴏᴜᴛɪʟs & ɪᴀ (20) 」 ───
+│ 🍓 ${p}ᴀɪ  🍓 ${p}ɢᴘᴛ  🍓 ${p}ɪᴍᴀɢɪɴᴇ
+│ 🍓 ${p}ᴛʀᴀɴsʟᴀᴛᴇ  🍓 ${p}ᴛᴛs  🍓 ${p}ǫʀ
+│ 🍓 ${p}ʀᴇᴀᴅǫʀ  🍓 ${p}ᴄᴀʟᴄ  🍓 ${p}ᴡᴇᴀᴛʜᴇʀ
+│ 🍓 ${p}ᴡɪᴋɪ  🍓 ${p}ɢᴏᴏɢʟᴇ  🍓 ${p}sʜᴏʀᴛᴜʀʟ
+│ 🍓 ${p}sᴄʀᴇᴇɴsʜᴏᴛ  🍓 ${p}ɢɪᴛʜᴜʙ  🍓 ${p}ɴᴘᴍ
+│ 🍓 ${p}ᴇɴᴄᴏᴅᴇ  🍓 ${p}ᴅᴇᴄᴏᴅᴇ  🍓 ${p}ʙɪɴᴀʀʏ
+│ 🍓 ${p}ᴘᴀssᴡᴏʀᴅ  🍓 ${p}ᴅᴇғɪɴᴇ
+├─── 「 6. ᴊᴇᴜx & ғᴜɴ (15) 」 ───
+│ 🍓 ${p}ǫᴜɪᴢ  🍓 ${p}ᴅᴇᴠɪɴᴇᴛᴛᴇ  🍓 ${p}ᴛʀᴜᴇᴏʀғᴀʟsᴇ
+│ 🍓 ${p}ʀᴏᴜʟᴇᴛᴛᴇ  🍓 ${p}sʟᴏᴛ  🍓 ${p}ᴅɪᴄᴇ
+│ 🍓 ${p}ᴄᴏɪɴ  🍓 ${p}8ʙᴀʟʟ  🍓 ${p}sʜɪᴘ
+│ 🍓 ${p}ɢᴀʏ  🍓 ${p}ʟᴏᴠᴇ  🍓 ${p}ᴊᴏᴋᴇ
+│ 🍓 ${p}ғᴀᴄᴛ  🍓 ${p}ǫᴜᴏᴛᴇ  🍓 ${p}ʀᴏᴀsᴛ
+└──────────────────────────`;
 }
 
 module.exports = { getMenu };
