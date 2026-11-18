@@ -1,15 +1,14 @@
-const { toKayseurFont } = require('./font');
-const config = require('./config');
+const { toKayseurFont } = require('../font');
+const config = require('../../config');
 
-async function sendMenu(sock, mek) {
+async function sendMainMenu(sock, mek, pushName) {
     const remoteJid = mek.key.remoteJid;
-    const pushName = mek.pushName || 'Utilisateur';
 
     const menuCaption = `
- *${toKayseurFont('🚀KAYSEUR_MDX — MENU PRINCIPAL💀')}* 
+🏀 *${toKayseurFont('KAYSEUR_MDX — MENU PRINCIPAL')}* 😎🔥
 
 👤 *Proprio :* ${pushName}
-⚡ *Préfixe :* ${config.prefix}
+⚡ *Préfixe :* ${config.prefix || '.'}
 
 ╭── 「 ${toKayseurFont('1. ADMIN & GROUPE')} 」 ──
 │ ≫ ${toKayseurFont('kick')}
@@ -46,11 +45,11 @@ async function sendMenu(sock, mek) {
 > 📢 ${toKayseurFont('Rejoignez notre canal officiel !')}
 `.trim();
 
-    // Envoi direct via l'URL de l'image de Catbox
     await sock.sendMessage(remoteJid, {
         image: { url: 'https://files.catbox.moe/47dngj.jpg' },
         caption: menuCaption
     }, { quoted: mek });
 }
 
-module.exports = { sendMenu };
+module.exports = { sendMainMenu };
+
