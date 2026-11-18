@@ -1,55 +1,56 @@
-const config = require('../../config');
-const { toKayseurFont } = require('../font');
+const { toKayseurFont } = require('./font');
+const config = require('./config');
 
-function getMenu(pushName) {
-    const p = config.prefix;
-    return `┌─── 「 ᴋᴀʏsᴇᴜʀ_ᴍᴅx 」 ───
-│ 👤 ᴘʀᴏᴘʀɪᴇᴛᴀɪʀᴇ : ${config.ownerName}
-│ 👤 ᴜᴛɪʟɪsᴀᴛᴇᴜʀ : ${toKayseurFont(pushName)}
-│ 🍓 ᴘʀᴇғɪxᴇ : ${p}
-│ 🌐 ᴍᴏᴅᴇ : ${config.publicMode ? 'ᴘᴜʙʟɪᴄ' : 'ᴘʀɪᴠᴇ'}
-│ 📊 ᴛᴏᴛᴀʟ : 100 ᴄᴏᴍᴍᴀɴᴅᴇs
-├─── 「 1. ᴍᴜsɪǫᴜᴇ & ᴍᴇᴅɪᴀs (15) 」 ───
-│ 🍓 ${p}ᴘʟᴀʏ  🍓 ${p}sᴏɴɢ  🍓 ${p}ʏᴛᴍᴘ3
-│ 🍓 ${p}ᴠɪᴅᴇᴏ  🍓 ${p}ʏᴛᴍᴘ4  🍓 ${p}ᴍᴜsɪᴄ
-│ 🍓 ${p}ʟʏʀɪᴄs  🍓 ${p}sᴘᴏᴛɪғʏ  🍓 ${p}ᴛɪᴋᴛᴏᴋ
-│ 🍓 ${p}ɪɢᴅʟ  🍓 ${p}ғʙᴅʟ  🍓 ${p}ᴘɪɴᴛᴇʀᴇsᴛ
-│ 🍓 ${p}ᴛᴏᴀᴜᴅɪᴏ  🍓 ${p}ᴛᴏᴍᴘ3  🍓 ${p}ʙᴀss
-├─── 「 2. sᴛɪᴄᴋᴇʀs & ᴘᴏʟɪᴄᴇs (15) 」 ───
-│ 🍓 ${p}sᴛɪᴄᴋᴇʀ  🍓 ${p}s  🍓 ${p}ᴀsᴛɪᴄᴋᴇʀ
-│ 🍓 ${p}ᴛᴀᴋᴇ  🍓 ${p}sᴛᴇᴀʟ  🍓 ${p}ᴛᴏɪᴍɢ
-│ 🍓 ${p}ᴛᴏɢɪғ  🍓 ${p}ғᴏɴᴛ  🍓 ${p}sᴛʏʟᴇ
-│ 🍓 ${p}ғᴀɴᴄʏ  🍓 ${p}ʙᴏʟᴅ  🍓 ${p}ɢʟɪᴛᴄʜ
-│ 🍓 ${p}ᴀᴛᴛᴘ  🍓 ${p}ᴛᴛᴘ  🍓 ${p}ᴇᴍᴏᴊɪᴍɪx
-├─── 「 3. ɢʀᴏᴜᴘᴇs & ᴀᴅᴍɪɴ (20) 」 ───
-│ 🍓 ${p}ᴘᴜʀɢᴇ  🍓 ${p}ᴋɪᴄᴋ  🍓 ${p}ᴀᴅᴅ
-│ 🍓 ${p}ᴘʀᴏᴍᴏᴛᴇ  🍓 ${p}ᴅᴇᴍᴏᴛᴇ  🍓 ${p}ᴏᴘᴇɴ
-│ 🍓 ${p}ᴄʟᴏsᴇ  🍓 ${p}ᴛᴀɢᴀʟʟ  🍓 ${p}ʜɪᴅᴇᴛᴀɢ
-│ 🍓 ${p}ʟɪɴᴋ  🍓 ${p}ʀᴇᴠᴏᴋᴇ  🍓 ${p}ᴡᴇʟᴄᴏᴍᴇ
-│ 🍓 ${p}ɢᴏᴏᴅʙʏᴇ  🍓 ${p}ᴀɴᴛɪʟɪɴᴋ  🍓 ${p}ᴀɴᴛɪʙᴏᴛ
-│ 🍓 ${p}ᴍᴜᴛᴇ  🍓 ${p}ᴜɴᴍᴜᴛᴇ  🍓 ${p}sᴇᴛɴᴀᴍᴇ
-│ 🍓 ${p}sᴇᴛᴅᴇsᴄ  🍓 ${p}ɢʀᴏᴜᴘɪɴғᴏ
-├─── 「 4. ᴘʀɪᴠᴇ & ᴘᴜʙʟɪᴄ ᴏᴡɴᴇʀ (15) 」 ───
-│ 🍓 ${p}ᴘᴜʙʟɪᴄ  🍓 ${p}ᴘʀɪᴠᴀᴛᴇ  🍓 ${p}sᴇʟғ
-│ 🍓 ${p}ᴏᴡɴᴇʀ  🍓 ${p}ʙʟᴏᴄᴋ  🍓 ${p}ᴜɴʙʟᴏᴄᴋ
-│ 🍓 ${p}ʙᴄ  🍓 ${p}ᴊᴏɪɴ  🍓 ${p}ʟᴇᴀᴠᴇ
-│ 🍓 ${p}sᴇᴛᴘᴘ  🍓 ${p}sᴇᴛʙɪᴏ  🍓 ${p}ʀᴇsᴛᴀʀᴛ
-│ 🍓 ${p}ᴘɪɴɢ  🍓 ${p}ᴀʟɪᴠᴇ  🍓 ${p}ʀᴜɴᴛɪᴍᴇ
-├─── 「 5. ᴏᴜᴛɪʟs & ɪᴀ (20) 」 ───
-│ 🍓 ${p}ᴀɪ  🍓 ${p}ɢᴘᴛ  🍓 ${p}ɪᴍᴀɢɪɴᴇ
-│ 🍓 ${p}ᴛʀᴀɴsʟᴀᴛᴇ  🍓 ${p}ᴛᴛs  🍓 ${p}ǫʀ
-│ 🍓 ${p}ʀᴇᴀᴅǫʀ  🍓 ${p}ᴄᴀʟᴄ  🍓 ${p}ᴡᴇᴀᴛʜᴇʀ
-│ 🍓 ${p}ᴡɪᴋɪ  🍓 ${p}ɢᴏᴏɢʟᴇ  🍓 ${p}sʜᴏʀᴛᴜʀʟ
-│ 🍓 ${p}sᴄʀᴇᴇɴsʜᴏᴛ  🍓 ${p}ɢɪᴛʜᴜʙ  🍓 ${p}ɴᴘᴍ
-│ 🍓 ${p}ᴇɴᴄᴏᴅᴇ  🍓 ${p}ᴅᴇᴄᴏᴅᴇ  🍓 ${p}ʙɪɴᴀʀʏ
-│ 🍓 ${p}ᴘᴀssᴡᴏʀᴅ  🍓 ${p}ᴅᴇғɪɴᴇ
-├─── 「 6. ᴊᴇᴜx & ғᴜɴ (15) 」 ───
-│ 🍓 ${p}ǫᴜɪᴢ  🍓 ${p}ᴅᴇᴠɪɴᴇᴛᴛᴇ  🍓 ${p}ᴛʀᴜᴇᴏʀғᴀʟsᴇ
-│ 🍓 ${p}ʀᴏᴜʟᴇᴛᴛᴇ  🍓 ${p}sʟᴏᴛ  🍓 ${p}ᴅɪᴄᴇ
-│ 🍓 ${p}ᴄᴏɪɴ  🍓 ${p}8ʙᴀʟʟ  🍓 ${p}sʜɪᴘ
-│ 🍓 ${p}ɢᴀʏ  🍓 ${p}ʟᴏᴠᴇ  🍓 ${p}ᴊᴏᴋᴇ
-│ 🍓 ${p}ғᴀᴄᴛ  🍓 ${p}ǫᴜᴏᴛᴇ  🍓 ${p}ʀᴏᴀsᴛ
-└──────────────────────────`;
+async function sendMenu(sock, mek) {
+    const remoteJid = mek.key.remoteJid;
+    const pushName = mek.pushName || 'Utilisateur';
+
+    const menuCaption = `
+ *${toKayseurFont('🚀KAYSEUR_MDX — MENU PRINCIPAL💀')}* 
+
+👤 *Proprio :* ${pushName}
+⚡ *Préfixe :* ${config.prefix}
+
+╭── 「 ${toKayseurFont('1. ADMIN & GROUPE')} 」 ──
+│ ≫ ${toKayseurFont('kick')}
+│ ≫ ${toKayseurFont('add')}
+│ ≫ ${toKayseurFont('promote')}
+│ ≫ ${toKayseurFont('demote')}
+│ ≫ ${toKayseurFont('tagall')}
+│ ≫ ${toKayseurFont('hidetag')}
+│ ≫ ${toKayseurFont('antilink')}
+╰───────────────
+
+╭── 「 ${toKayseurFont('2. TÉLÉCHARGEMENT')} 」 ──
+│ ≫ ${toKayseurFont('play')}
+│ ≫ ${toKayseurFont('video')}
+│ ≫ ${toKayseurFont('tiktok')}
+│ ≫ ${toKayseurFont('insta')}
+│ ≫ ${toKayseurFont('fb')}
+╰───────────────
+
+╭── 「 ${toKayseurFont('3. OUTILS & IA')} 」 ──
+│ ≫ ${toKayseurFont('ai')}
+│ ≫ ${toKayseurFont('sticker')}
+│ ≫ ${toKayseurFont('toimg')}
+│ ≫ ${toKayseurFont('vv')}
+│ ≫ ${toKayseurFont('ping')}
+╰───────────────
+
+╭── 「 ${toKayseurFont('4. BUG & DIVERS')} 」 ──
+│ ≫ ${toKayseurFont('ban')}
+│ ≫ ${toKayseurFont('unban')}
+│ ≫ ${toKayseurFont('bug')}
+╰───────────────
+
+> 📢 ${toKayseurFont('Rejoignez notre canal officiel !')}
+`.trim();
+
+    // Envoi direct via l'URL de l'image de Catbox
+    await sock.sendMessage(remoteJid, {
+        image: { url: 'https://files.catbox.moe/47dngj.jpg' },
+        caption: menuCaption
+    }, { quoted: mek });
 }
 
-module.exports = { getMenu };
+module.exports = { sendMenu };
