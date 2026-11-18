@@ -15,20 +15,28 @@ const MENU_IMAGE_URL = 'https://files.catbox.moe/47dngj.jpg';
 
 // Fonction d'envoi avec Image et Bouton Chaîne intégré (Style Menu)
 async function sendMediaWithButton(sock, remoteJid, mek, textContent) {
-    await sock.sendMessage(remoteJid, {
-        image: { url: MENU_IMAGE_URL },
-        caption: textContent,
-        footer: '🍓 KAYSEUR MDX • THE GLITCH DEV',
-        templateButtons: [
-            {
-                index: 1,
-                urlButton: {
-                    displayText: 'Voir la chaîne',
+    try {
+        await sock.sendMessage(remoteJid, {
+            image: { url: MENU_IMAGE_URL },
+            caption: textContent,
+            footer: '🍓 KAYSEUR MDX • THE GLITCH DEV',
+            buttons: [
+                {
+                    buttonId: 'view_channel',
+                    buttonText: { displayText: '📢 Voir la chaîne' },
+                    type: 1,
                     url: CHANNEL_LINK
                 }
-            }
-        ]
-    }, { quoted: mek });
+            ],
+            headerType: 4
+        }, { quoted: mek });
+    } catch (error) {
+        // Envoi de secours avec le lien direct dans le texte si les boutons ne passent pas
+        await sock.sendMessage(remoteJid, {
+            image: { url: MENU_IMAGE_URL },
+            caption: `${textContent}\n\n📢 **Chaîne :** ${CHANNEL_LINK}`
+        }, { quoted: mek });
+    }
 }
 
 // ========================================
