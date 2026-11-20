@@ -6,47 +6,43 @@ const token = process.env.TELEGRAM_BOT_TOKEN;
 
 let bot = null;
 
-if (token && token !== '9137972662:AAEOV92YxGObej1oWO1SOh-rLhoKhAiNbJY') {
+if (token) {
     try {
         bot = new Telegraf(token);
 
         bot.start(async (ctx) => {
             await ctx.reply(
-                `⚡ ʙɪᴇɴᴠᴇɴᴜᴇ sᴜʀ ʟᴇ ʙᴏᴛ ᴛᴇʟᴇɢʀᴀᴍ ᴅᴇ ʟɪᴀɪsᴏɴ ${config.botName} !\n\nᴄʟɪǫᴜᴇᴢ ᴄɪ-ᴅᴇssᴏᴜs ᴘᴏᴜʀ ᴄᴏɴɴᴇᴄᴛᴇʀ ᴠᴏᴛʀᴇ ᴡʜᴀᴛsᴀᴘᴘ.`,
+                `⚡ Bienvenue sur le bot Telegram de liaison ${config.botName} !\n\nCliquez ci-dessous pour connecter votre WhatsApp.`,
                 {
                     reply_markup: {
                         inline_keyboard: [
-                            [{
-                                text: "🔗 ᴏᴜᴠʀɪʀ ʟᴇ sɪᴛᴇ ᴅᴇ ᴘᴀɪʀɪɴɢ",
-                                url: process.env.RENDER_EXTERNAL_URL ||
-                                     process.env.VERCEL_URL ||
-                                     "https://kayseur-mdx-pair.onrender.com"
-                            }],
-                            [{
-                                text: "📢 ᴠᴏɪʀ ʟᴀ ᴄʜᴀɪɴᴇ",
-                                url: config.channelLink
-                            }]
+                            [
+                                {
+                                    text: '🔗 OUVRIR LE SITE DE PAIRING',
+                                    url:
+                                        process.env.RENDER_EXTERNAL_URL ||
+                                        process.env.VERCEL_URL ||
+                                        'https://kayseur-mdx-pair.onrender.com'
+                                }
+                            ],
+                            [
+                                {
+                                    text: '📢 VOIR LA CHAÎNE',
+                                    url: config.channelLink
+                                }
+                            ]
                         ]
                     }
                 }
             );
         });
 
-        bot.launch()
-            .then(() => {
-                console.log("✅ Bot Telegram démarré avec succès.");
-            })
-            .catch(err => {
-                console.error("⚠️ Erreur de lancement Telegram :", err.message);
-            });
-
-    } catch (e) {
-        console.error("⚠️ Erreur Telegram :", e.message);
+    } catch (error) {
+        console.error('[TELEGRAM ERROR]', error.message);
+        bot = null;
     }
 } else {
-    console.log(
-        "ℹ️ Aucun token Telegram détecté, le bot continue sans Telegram."
-    );
+    console.log('[TELEGRAM] Aucun token détecté.');
 }
 
 module.exports = bot;
