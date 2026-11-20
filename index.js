@@ -20,11 +20,13 @@ const telegramBot = require('./src/telegram');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+// ======================================
+// VARIABLES
+// ======================================
 
 let waSock = null;
 let latestQR = null;
+
 let startingWhatsApp = false;
 let reconnectTimer = null;
 
@@ -40,13 +42,29 @@ const PAIRING_CACHE_TIME = 45000;
 const PAIRING_READY_TIMEOUT = 20000;
 
 // ======================================
-// EXTRACTION DES MESSAGES WHATSAPP
+// EXPRESS
+// ======================================
+
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '1mb' }));
+
+app.get('/', (req, res) => {
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+
+    if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+    }
+
+    return res.send('KAYSEUR MDX is running.');
+});
+
+// ======================================
+// EXTRACTION DES MESSAGES
 // ======================================
 
 function extractMessageBody(message) {
     if (!message) return '';
 
-    // Messages simples
     if (typeof message.conversation === 'string') {
         return message.conversation;
     }
@@ -55,7 +73,6 @@ function extractMessageBody(message) {
         return message.extendedTextMessage.text;
     }
 
-    // Messages avec légende
     if (message.imageMessage?.caption) {
         return message.imageMessage.caption;
     }
@@ -68,7 +85,6 @@ function extractMessageBody(message) {
         return message.documentMessage.caption;
     }
 
-    // Boutons et listes
     if (message.buttonsResponseMessage?.selectedButtonId) {
         return message.buttonsResponseMessage.selectedButtonId;
     }
@@ -81,12 +97,22 @@ function extractMessageBody(message) {
         return message.templateButtonReplyMessage.selectedId;
     }
 
-    // Messages interactifs
     if (message.interactiveResponseMessage?.body?.text) {
         return message.interactiveResponseMessage.body.text;
     }
 
-    // Messages enveloppés par WhatsApp
+    if (message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson) {
+        try {
+            const params = JSON.parse(
+                message.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson
+            );
+
+            return params.id || params.selected_id || '';
+        } catch {
+            return '';
+        }
+    }
+
     const wrappers = [
         'ephemeralMessage',
         'viewOnceMessage',
@@ -97,7 +123,10 @@ function extractMessageBody(message) {
 
     for (const wrapper of wrappers) {
         if (message[wrapper]?.message) {
-            const result = extractMessageBody(message[wrapper].message);
+            const result = extractMessageBody(
+                message[wrapper].message
+            );
+
             if (result) return result;
         }
     }
@@ -106,13 +135,20 @@ function extractMessageBody(message) {
 }
 
 // ======================================
-// PRÉPARATION DU PAIRING
+// PAIRING
 // ======================================
 
 function resetPairingReadiness() {
     pairingReadyPromise = new Promise(resolve => {
         pairingReadyResolver = resolve;
     });
+}
+
+function resolvePairingReadiness(value) {
+    if (pairingReadyResolver) {
+        pairingReadyResolver(value);
+        pairingReadyResolver = null;
+    }
 }
 
 async function waitForPairingReady() {
@@ -133,6 +169,13 @@ async function waitForPairingReady() {
     }
 }
 
+function clearPairingData() {
+    pairingCode = null;
+    pairingPhone = null;
+    pairingCodeTime = 0;
+    pairingInProgress = null;
+}
+
 // ======================================
 // API PAIRING
 // ======================================
@@ -140,17 +183,20 @@ async function waitForPairingReady() {
 app.get('/api/pairing', async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
-    const phone = String(req.query.phone || '').replace(/\D/g, '');
+    const phone = String(req.query.phone || '')
+        .replace(/\D/g, '');
 
     if (!phone || phone.length < 8 || phone.length > 15) {
         return res.status(400).json({
-            error: 'NUMERO INVALIDE'
+            error: 'NUMERO INVALIDE',
+            details: 'Entre le numéro avec son indicatif international.'
         });
     }
 
     if (!waSock) {
         return res.status(503).json({
-            error: 'WHATSAPP EN ATTENTE'
+            error: 'WHATSAPP EN ATTENTE',
+            details: 'Le bot WhatsApp est en cours de démarrage.'
         });
     }
 
@@ -160,24 +206,29 @@ app.get('/api/pairing', async (req, res) => {
         });
     }
 
+    // Réutilisation du code récent
     if (
         pairingCode &&
         pairingPhone === phone &&
         Date.now() - pairingCodeTime < PAIRING_CACHE_TIME
     ) {
-        return res.json({ code: pairingCode });
+        return res.json({
+            code: pairingCode
+        });
+    }
+
+    // Évite les demandes simultanées pour différents numéros
+    if (pairingInProgress) {
+        return res.status(409).json({
+            error: 'PAIRING EN COURS',
+            details: 'Attends la fin de la demande actuelle.'
+        });
     }
 
     if (pairingCode && pairingPhone !== phone) {
         return res.status(409).json({
-            error: 'UN CODE EXISTE DEJA',
-            details: 'Redémarre le service pour utiliser un autre numéro.'
-        });
-    }
-
-    if (pairingInProgress) {
-        return res.status(409).json({
-            error: 'DEMANDE DE PAIRING EN COURS'
+            error: 'CODE EXISTANT',
+            details: 'Un code existe déjà. Attends son expiration ou redémarre le service.'
         });
     }
 
@@ -185,7 +236,7 @@ app.get('/api/pairing', async (req, res) => {
 
     pairingInProgress = (async () => {
         try {
-            console.log('[PAIRING] Attente de WhatsApp...');
+            console.log('[PAIRING] Préparation de la connexion...');
 
             const ready = await waitForPairingReady();
 
@@ -220,11 +271,9 @@ app.get('/api/pairing', async (req, res) => {
             return pairingCode;
 
         } catch (error) {
-            console.log('[PAIRING ERROR]', error.message);
+            console.error('[PAIRING ERROR]', error.message);
 
-            pairingCode = null;
-            pairingPhone = null;
-            pairingCodeTime = 0;
+            clearPairingData();
 
             throw error;
         }
@@ -232,7 +281,10 @@ app.get('/api/pairing', async (req, res) => {
 
     try {
         const code = await pairingInProgress;
-        return res.json({ code });
+
+        return res.json({
+            code
+        });
 
     } catch (error) {
         return res.status(503).json({
@@ -260,10 +312,13 @@ app.get('/api/qr', async (req, res) => {
 
     try {
         const qrDataUrl = await QRCode.toDataURL(latestQR);
-        return res.json({ qr: qrDataUrl });
+
+        return res.json({
+            qr: qrDataUrl
+        });
 
     } catch (error) {
-        console.log('[QR ERROR]', error.message);
+        console.error('[QR ERROR]', error.message);
 
         return res.status(500).json({
             error: 'QR_GENERATION_ERROR'
@@ -272,7 +327,21 @@ app.get('/api/qr', async (req, res) => {
 });
 
 // ======================================
-// SERVEUR EXPRESS
+// STATUS
+// ======================================
+
+app.get('/api/status', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+
+    res.json({
+        server: 'online',
+        whatsapp: waSock ? 'starting' : 'offline',
+        telegram: telegramBot ? 'configured' : 'disabled'
+    });
+});
+
+// ======================================
+// SERVEUR
 // ======================================
 
 app.listen(PORT, () => {
@@ -280,7 +349,7 @@ app.listen(PORT, () => {
 });
 
 // ======================================
-// DÉMARRAGE TELEGRAM
+// TELEGRAM OPTIONNEL
 // ======================================
 
 if (telegramBot && typeof telegramBot.launch === 'function') {
@@ -289,8 +358,10 @@ if (telegramBot && typeof telegramBot.launch === 'function') {
             console.log('[TELEGRAM] Bot démarré.');
         })
         .catch(error => {
-            console.log('[TELEGRAM ERROR]', error.message);
+            console.error('[TELEGRAM ERROR]', error.message);
         });
+} else {
+    console.log('[TELEGRAM] Désactivé. WhatsApp continue normalement.');
 }
 
 // ======================================
@@ -306,25 +377,34 @@ async function startWhatsAppBot() {
         const sessionPath = path.join(__dirname, 'session');
 
         if (!fs.existsSync(sessionPath)) {
-            fs.mkdirSync(sessionPath, { recursive: true });
+            fs.mkdirSync(sessionPath, {
+                recursive: true
+            });
         }
 
         const { state, saveCreds } =
             await useMultiFileAuthState(sessionPath);
 
         latestQR = null;
-        pairingCode = null;
-        pairingPhone = null;
-        pairingCodeTime = 0;
-        pairingInProgress = null;
+        clearPairingData();
 
         resetPairingReadiness();
 
         const sock = makeWASocket({
-            logger: pino({ level: 'silent' }),
+            logger: pino({
+                level: 'silent'
+            }),
+
             printQRInTerminal: false,
+
             auth: state,
-            browser: ['Ubuntu', 'Chrome', '20.0.04'],
+
+            browser: [
+                'Ubuntu',
+                'Chrome',
+                '20.0.04'
+            ],
+
             markOnlineOnConnect: false,
             syncFullHistory: false
         });
@@ -334,41 +414,43 @@ async function startWhatsAppBot() {
         sock.ev.on('creds.update', saveCreds);
 
         // ======================================
-        // CONNEXION WHATSAPP
+        // CONNEXION
         // ======================================
 
         sock.ev.on('connection.update', async update => {
-            const { connection, lastDisconnect, qr } = update;
+            const {
+                connection,
+                lastDisconnect,
+                qr
+            } = update;
 
             if (qr) {
                 latestQR = qr;
 
-                if (pairingReadyResolver) {
-                    pairingReadyResolver(true);
-                    pairingReadyResolver = null;
-                }
+                resolvePairingReadiness(true);
 
                 console.log('[WHATSAPP] QR disponible.');
             }
 
             if (connection === 'connecting') {
                 console.log('[WHATSAPP] Connexion en cours...');
+
+                // Permet au système de pairing de commencer
+                resolvePairingReadiness(true);
             }
 
             if (connection === 'open') {
                 latestQR = null;
 
-                pairingCode = null;
-                pairingPhone = null;
-                pairingCodeTime = 0;
-                pairingInProgress = null;
+                clearPairingData();
 
-                if (pairingReadyResolver) {
-                    pairingReadyResolver(false);
-                    pairingReadyResolver = null;
-                }
+                resolvePairingReadiness(false);
 
                 console.log('[WHATSAPP] KAYSEUR MDX connecté !');
+
+                console.log(
+                    '[WHATSAPP] Connexion WhatsApp réussie.'
+                );
             }
 
             if (connection === 'close') {
@@ -383,7 +465,7 @@ async function startWhatsAppBot() {
 
                 console.log(
                     '[WHATSAPP] Connexion fermée :',
-                    statusCode
+                    statusCode || 'raison inconnue'
                 );
 
                 latestQR = null;
@@ -392,17 +474,15 @@ async function startWhatsAppBot() {
                     waSock = null;
                 }
 
-                pairingCode = null;
-                pairingPhone = null;
-                pairingCodeTime = 0;
-                pairingInProgress = null;
+                clearPairingData();
 
-                if (pairingReadyResolver) {
-                    pairingReadyResolver(false);
-                    pairingReadyResolver = null;
-                }
+                resolvePairingReadiness(false);
 
                 if (shouldReconnect && !reconnectTimer) {
+                    console.log(
+                        '[WHATSAPP] Reconnexion dans 3 secondes...'
+                    );
+
                     reconnectTimer = setTimeout(() => {
                         reconnectTimer = null;
                         startWhatsAppBot();
@@ -410,14 +490,14 @@ async function startWhatsAppBot() {
 
                 } else if (!shouldReconnect) {
                     console.log(
-                        '[WHATSAPP] Session déconnectée. Reconnexion nécessaire.'
+                        '[WHATSAPP] Session déconnectée. Une nouvelle connexion est nécessaire.'
                     );
                 }
             }
         });
 
         // ======================================
-        // RÉCEPTION ET TRAITEMENT DES COMMANDES
+        // MESSAGES ET COMMANDES
         // ======================================
 
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -429,7 +509,15 @@ async function startWhatsAppBot() {
 
                     const remoteJid = mek.key?.remoteJid;
 
-                    if (!remoteJid || remoteJid === 'status@broadcast') {
+                    if (
+                        !remoteJid ||
+                        remoteJid === 'status@broadcast'
+                    ) {
+                        continue;
+                    }
+
+                    // Ne traite pas les messages envoyés par le bot
+                    if (mek.key?.fromMe) {
                         continue;
                     }
 
@@ -443,15 +531,16 @@ async function startWhatsAppBot() {
 
                     if (!cleanBody) continue;
 
-                    // Préfixes acceptés
+                    // Préfixes autorisés
                     const prefixes = [
                         config.prefix,
                         '🍓',
                         '.'
                     ].filter(Boolean);
 
-                    const uniquePrefixes = [...new Set(prefixes)]
-                        .sort((a, b) => b.length - a.length);
+                    const uniquePrefixes = [
+                        ...new Set(prefixes)
+                    ].sort((a, b) => b.length - a.length);
 
                     const usedPrefix = uniquePrefixes.find(prefix =>
                         cleanBody.startsWith(prefix)
@@ -466,7 +555,11 @@ async function startWhatsAppBot() {
                     if (!commandText) continue;
 
                     const parts = commandText.split(/\s+/);
-                    const command = parts.shift().toLowerCase();
+
+                    const command = parts
+                        .shift()
+                        .toLowerCase();
+
                     const args = parts;
 
                     if (!command) continue;
@@ -475,7 +568,7 @@ async function startWhatsAppBot() {
                         mek.pushName || 'UTILISATEUR';
 
                     console.log(
-                        `[COMMAND] ${command} | chat=${remoteJid} | type=${type}`
+                        `[COMMAND] ${command} | ${remoteJid}`
                     );
 
                     await handleCommand(
@@ -487,10 +580,12 @@ async function startWhatsAppBot() {
                         pushName
                     );
 
-                    console.log(`[COMMAND OK] ${command}`);
+                    console.log(
+                        `[COMMAND OK] ${command}`
+                    );
 
                 } catch (error) {
-                    console.log(
+                    console.error(
                         '[COMMAND ERROR]',
                         error.stack || error.message
                     );
@@ -499,24 +594,38 @@ async function startWhatsAppBot() {
         });
 
         // ======================================
-        // WELCOME ET GOODBYE
+        // WELCOME / GOODBYE
         // ======================================
 
         sock.ev.on('group-participants.update', async update => {
-            const { id, participants, action } = update;
+            const {
+                id,
+                participants,
+                action
+            } = update;
 
             try {
+                if (!id || !Array.isArray(participants)) {
+                    return;
+                }
+
                 const metadata = await sock.groupMetadata(id);
 
                 const groupIcon = await sock
                     .profilePictureUrl(id, 'image')
-                    .catch(() => 'https://i.imgur.com/1Z2x3Y1.png');
+                    .catch(() => null);
+
+                const menuImagePath = path.resolve(
+                    __dirname,
+                    config.menuImage || 'assets/menu.png'
+                );
 
                 const botIcon =
-                    config.menuImage &&
-                    fs.existsSync(config.menuImage)
-                        ? fs.readFileSync(config.menuImage)
-                        : { url: groupIcon };
+                    fs.existsSync(menuImagePath)
+                        ? fs.readFileSync(menuImagePath)
+                        : groupIcon
+                            ? { url: groupIcon }
+                            : null;
 
                 const adminsCount = metadata.participants.filter(
                     participant => participant.admin
@@ -531,11 +640,16 @@ async function startWhatsAppBot() {
                             `CHAINE : ${config.channelLink}`
                         ]);
 
-                        await sock.sendMessage(id, {
-                            image: botIcon,
+                        const message = {
                             caption: welcomeCaption,
                             mentions: [user]
-                        });
+                        };
+
+                        if (botIcon) {
+                            message.image = botIcon;
+                        }
+
+                        await sock.sendMessage(id, message);
 
                     } else if (action === 'remove') {
                         const goodbyeCaption = boxText('GOODBYE', [
@@ -545,16 +659,25 @@ async function startWhatsAppBot() {
                             `CHAINE : ${config.channelLink}`
                         ]);
 
-                        await sock.sendMessage(id, {
-                            image: { url: groupIcon },
-                            caption: goodbyeCaption,
+                        const message = {
+                            text: goodbyeCaption,
                             mentions: [user]
-                        });
+                        };
+
+                        if (groupIcon) {
+                            message.image = {
+                                url: groupIcon
+                            };
+                            message.caption = goodbyeCaption;
+                            delete message.text;
+                        }
+
+                        await sock.sendMessage(id, message);
                     }
                 }
 
             } catch (error) {
-                console.log(
+                console.error(
                     '[WELCOME ERROR]',
                     error.message
                 );
@@ -562,17 +685,14 @@ async function startWhatsAppBot() {
         });
 
     } catch (error) {
-        console.log(
+        console.error(
             '[WHATSAPP START ERROR]',
             error.stack || error.message
         );
 
         waSock = null;
 
-        if (pairingReadyResolver) {
-            pairingReadyResolver(false);
-            pairingReadyResolver = null;
-        }
+        resolvePairingReadiness(false);
 
         if (!reconnectTimer) {
             reconnectTimer = setTimeout(() => {
@@ -587,7 +707,7 @@ async function startWhatsAppBot() {
 }
 
 // ======================================
-// LANCEMENT DU BOT
+// LANCEMENT FINAL
 // ======================================
 
 startWhatsAppBot();
