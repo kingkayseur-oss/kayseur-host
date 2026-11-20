@@ -1,4 +1,3 @@
-
 const { sendMainMenu } = require('./menu');
 const config = require('../../config');
 
@@ -190,7 +189,7 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
 
                 if (!senderIsAdmin || !botIsAdmin) {
                     return reply(sock, remoteJid, mek,
-                        '⛔ L'administrateur et le bot doivent avoir les permissions nécessaires.');
+                        '⛔ L\'administrateur et le bot doivent avoir les permissions nécessaires.');
                 }
 
                 const target = getNumberFromArgs(args);
