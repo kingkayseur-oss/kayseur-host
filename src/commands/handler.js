@@ -102,19 +102,11 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
     try {
         switch (command) {
 
-            // ==================================
-            // MENU
-            // ==================================
-
             case 'menu':
             case 'help': {
                 await sendMainMenu(sock, mek, pushName);
                 break;
             }
-
-            // ==================================
-            // KICK : RETRAIT INDIVIDUEL
-            // ==================================
 
             case 'kick': {
                 const {
@@ -151,10 +143,6 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
                 );
                 break;
             }
-
-            // ==================================
-            // PURGE : APERÇU DES MEMBRES
-            // ==================================
 
             case 'purge': {
                 const {
@@ -196,10 +184,6 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
                 break;
             }
 
-            // ==================================
-            // AJOUTER UN MEMBRE
-            // ==================================
-
             case 'add': {
                 const { senderIsAdmin, botIsAdmin } =
                     await checkAdmin(sock, remoteJid, mek);
@@ -228,10 +212,6 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
                 );
                 break;
             }
-
-            // ==================================
-            // PROMOTE / DEMOTE
-            // ==================================
 
             case 'promote':
             case 'demote': {
@@ -262,10 +242,6 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
                 );
                 break;
             }
-
-            // ==================================
-            // TAGALL / HIDETAG
-            // ==================================
 
             case 'tagall':
             case 'hidetag': {
@@ -305,27 +281,31 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
             // ==================================
 
             case 'groupinfo': {
-    if (!remoteJid.endsWith('@g.us')) {
-        return reply('❌ Cette commande fonctionne uniquement dans un groupe.');
-    }
+                if (!remoteJid.endsWith('@g.us')) {
+                    return reply(
+                        sock,
+                        remoteJid,
+                        mek,
+                        '❌ Cette commande fonctionne uniquement dans un groupe.'
+                    );
+                }
 
-    try {
-        const metadata = await sock.groupMetadata(remoteJid);
+                try {
+                    const metadata = await sock.groupMetadata(remoteJid);
 
-        let description = 'Aucune description définie';
+                    let description = 'Aucune description définie';
 
-        // Récupérer la vraie description WhatsApp
-        if (metadata.desc && metadata.desc.trim()) {
-            description = metadata.desc.trim();
-        }
+                    if (metadata.desc && metadata.desc.trim()) {
+                        description = metadata.desc.trim();
+                    }
 
-        const admins = metadata.participants.filter(
-            p => p.admin === 'admin' || p.admin === 'superadmin'
-        ).length;
+                    const admins = metadata.participants.filter(
+                        p => p.admin === 'admin' || p.admin === 'superadmin'
+                    ).length;
 
-        const members = metadata.participants.length;
+                    const members = metadata.participants.length;
 
-        const text = `
+                    const text = `
 ╭━━〔 ♛ KAYSEUR MDX ♛ 〕━━╮
 ┃    INFORMATIONS DU GROUPE
 ╰━━━━━━━━━━━━━━━━━━━━╯
@@ -341,17 +321,23 @@ ${description}
 ╰━━〔 MR KING KAYSEUR 〕━━╯
 `.trim();
 
-        await sock.sendMessage(remoteJid, {
-            text
-        }, { quoted: mek });
+                    await sock.sendMessage(remoteJid, {
+                        text
+                    }, { quoted: mek });
 
-    } catch (error) {
-        console.error('[GROUPINFO ERROR]', error);
-        await reply('❌ Impossible de récupérer les informations du groupe.');
-    }
+                } catch (error) {
+                    console.error('[GROUPINFO ERROR]', error);
 
-    break;
-}
+                    await reply(
+                        sock,
+                        remoteJid,
+                        mek,
+                        '❌ Impossible de récupérer les informations du groupe.'
+                    );
+                }
+
+                break;
+            }
 
             case 'admins': {
                 const metadata = await getGroupData(sock, remoteJid);
@@ -378,10 +364,6 @@ ${description}
                 break;
             }
 
-            // ==================================
-            // OUVRIR / FERMER LE GROUPE
-            // ==================================
-
             case 'open':
             case 'close': {
                 const { senderIsAdmin, botIsAdmin } =
@@ -404,10 +386,6 @@ ${description}
                 );
                 break;
             }
-
-            // ==================================
-            // MODIFIER LE GROUPE
-            // ==================================
 
             case 'setname': {
                 const { senderIsAdmin, botIsAdmin } =
@@ -458,20 +436,12 @@ ${description}
                 break;
             }
 
-            // ==================================
-            // ANTILINK
-            // ==================================
-
             case 'antilink':
             case 'antilinkmode': {
                 await reply(sock, remoteJid, mek,
                     '⚙️ Le réglage antilink sera activé après intégration de son système de configuration.');
                 break;
             }
-
-            // ==================================
-            // PING / RUNTIME
-            // ==================================
 
             case 'ping': {
                 const start = Date.now();
@@ -489,10 +459,6 @@ ${description}
                 break;
             }
 
-            // ==================================
-            // PROPRIÉTAIRE
-            // ==================================
-
             case 'owner': {
                 await reply(sock, remoteJid, mek,
                     `👑 PROPRIÉTAIRE : ${config.ownerName || 'MR KING KAYSEUR'}`
@@ -506,10 +472,6 @@ ${description}
                 );
                 break;
             }
-
-            // ==================================
-            // COMMANDES PAS ENCORE CONFIGURÉES
-            // ==================================
 
             case 'play':
             case 'song':
