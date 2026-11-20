@@ -1,45 +1,33 @@
 
 const express = require('express');
-const {
-    default: makeWASocket,
-    useMultiFileAuthState,
-    DisconnectReason
-} = require('@whiskeysockets/baileys');
-
-const { Boom } = require('@hapi/boom');
 const path = require('path');
 const fs = require('fs');
 const pino = require('pino');
 const QRCode = require('qrcode');
+
+const { Boom } = require('@hapi/boom');
+const { DisconnectReason } = require('@whiskeysockets/baileys');
 
 const config = require('./config');
 const { boxText } = require('./src/font');
 const { handleCommand } = require('./src/commands/handler');
 const telegramBot = require('./src/telegram');
 
+const {
+    MAX_SESSIONS,
+    createSession,
+    restoreSessions,
+    getSession,
+    authenticateSession,
+    getSessionCount,
+    getActiveSessionCount
+} = require('./src/sessionManager');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ======================================
-// VARIABLES
-// ======================================
-
-let waSock = null;
-let latestQR = null;
-
-let startingWhatsApp = false;
-let reconnectTimer = null;
-
-let pairingInProgress = null;
-let pairingCode = null;
-let pairingPhone = null;
-let pairingCodeTime = 0;
-
-let pairingReadyPromise = Promise.resolve(false);
-let pairingReadyResolver = null;
-
-const PAIRING_CACHE_TIME = 45000;
 const PAIRING_READY_TIMEOUT = 20000;
+const PAIRING_CACHE_TIME = 45000;
 
 // ======================================
 // EXPRESS
@@ -55,8 +43,64 @@ app.get('/', (req, res) => {
         return res.sendFile(indexPath);
     }
 
-    return res.send('KAYSEUR MDX is running.');
+    res.send('KAYSEUR MDX is running.');
 });
+
+// ======================================
+// LIMITATION DES CRÉATIONS
+// ======================================
+
+const creationRequests = new Map();
+
+function creationRateLimit(req, res, next) {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const windowTime = 60 * 60 * 1000;
+    const maxRequests = 5;
+
+    let data = creationRequests.get(ip);
+
+    if (!data || now - data.startedAt > windowTime) {
+        data = {
+            startedAt: now,
+            count: 0
+        };
+    }
+
+    data.count++;
+    creationRequests.set(ip, data);
+
+    if (data.count > maxRequests) {
+        return res.status(429).json({
+            error: 'TROP DE DEMANDES',
+            details: 'Réessaie plus tard.'
+        });
+    }
+
+    next();
+}
+
+// ======================================
+// AUTHENTIFICATION DES SESSIONS
+// ======================================
+
+function getAuthorizedSession(req) {
+    const id = req.params.id;
+
+    const authorization = String(
+        req.headers.authorization || ''
+    );
+
+    const bearer = authorization.startsWith('Bearer ')
+        ? authorization.slice(7)
+        : '';
+
+    const token = String(
+        req.headers['x-session-token'] || bearer
+    );
+
+    return authenticateSession(id, token);
+}
 
 // ======================================
 // EXTRACTION DES MESSAGES
@@ -135,28 +179,305 @@ function extractMessageBody(message) {
 }
 
 // ======================================
-// PAIRING
+// ÉVÉNEMENTS DE CHAQUE SESSION
 // ======================================
 
-function resetPairingReadiness() {
-    pairingReadyPromise = new Promise(resolve => {
-        pairingReadyResolver = resolve;
+async function attachSocketEvents(sock, session) {
+
+    // ======================================
+    // CONNEXION
+    // ======================================
+
+    sock.ev.on('connection.update', update => {
+        const { connection, lastDisconnect } = update;
+
+        if (connection === 'connecting') {
+            console.log('[WHATSAPP]', session.id, 'Connexion en cours...');
+        }
+
+        if (connection === 'open') {
+            console.log('[WHATSAPP]', session.id, 'Connecté !');
+        }
+
+        if (connection === 'close') {
+            const statusCode =
+                lastDisconnect?.error instanceof Boom
+                    ? lastDisconnect.error.output?.statusCode
+                    : lastDisconnect?.error?.output?.statusCode ||
+                      lastDisconnect?.error?.statusCode;
+
+            if (statusCode === DisconnectReason.loggedOut) {
+                console.log(
+                    '[WHATSAPP]',
+                    session.id,
+                    'Session déconnectée définitivement.'
+                );
+            } else {
+                console.log(
+                    '[WHATSAPP]',
+                    session.id,
+                    'Connexion interrompue.'
+                );
+            }
+        }
+    });
+
+    // ======================================
+    // MESSAGES ET COMMANDES
+    // ======================================
+
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        if (!Array.isArray(messages)) return;
+
+        for (const mek of messages) {
+            try {
+                if (!mek || !mek.message) continue;
+
+                const remoteJid = mek.key?.remoteJid;
+
+                if (
+                    !remoteJid ||
+                    remoteJid === 'status@broadcast'
+                ) {
+                    continue;
+                }
+
+                if (mek.key?.fromMe) continue;
+
+                const body = extractMessageBody(mek.message);
+
+                if (!body || typeof body !== 'string') continue;
+
+                const cleanBody = body.trim();
+
+                if (!cleanBody) continue;
+
+                const prefixes = [
+                    config.prefix,
+                    '🍓',
+                    '.'
+                ].filter(Boolean);
+
+                const uniquePrefixes = [
+                    ...new Set(prefixes)
+                ].sort((a, b) => b.length - a.length);
+
+                const usedPrefix = uniquePrefixes.find(prefix =>
+                    cleanBody.startsWith(prefix)
+                );
+
+                if (!usedPrefix) continue;
+
+                const commandText = cleanBody
+                    .slice(usedPrefix.length)
+                    .trim();
+
+                if (!commandText) continue;
+
+                const parts = commandText.split(/\s+/);
+
+                const command = parts.shift().toLowerCase();
+                const args = parts;
+
+                if (!command) continue;
+
+                const pushName = mek.pushName || 'UTILISATEUR';
+
+                console.log(
+                    `[COMMAND] ${session.id} | ${command} | ${remoteJid}`
+                );
+
+                await handleCommand(
+                    sock,
+                    mek,
+                    body,
+                    command,
+                    args,
+                    pushName
+                );
+
+                console.log(`[COMMAND OK] ${session.id} | ${command}`);
+
+            } catch (error) {
+                console.error(
+                    '[COMMAND ERROR]',
+                    session.id,
+                    error.stack || error.message
+                );
+            }
+        }
+    });
+
+    // ======================================
+    // WELCOME / GOODBYE — KAYSEUR MDX
+    // ======================================
+
+    sock.ev.on('group-participants.update', async update => {
+        const { id, participants, action } = update;
+
+        try {
+            if (!id || !Array.isArray(participants)) return;
+            if (action !== 'add' && action !== 'remove') return;
+
+            const metadata = await sock.groupMetadata(id);
+
+            const groupName = metadata.subject || 'GROUPE';
+            const groupDescription =
+                metadata.desc || 'Aucune description définie';
+
+            const membersCount = metadata.participants.length;
+
+            const channelLink = config.channelLink || '';
+
+            const buttons = /^https?:\/\//i.test(channelLink)
+                ? [{
+                    index: 1,
+                    urlButton: {
+                        displayText: '📢 VOIR NOTRE CHAÎNE',
+                        url: channelLink
+                    }
+                }]
+                : [];
+
+            for (const user of participants) {
+                const phone = user.split('@')[0];
+
+                let profilePicture = null;
+
+                try {
+                    profilePicture = await sock.profilePictureUrl(
+                        user,
+                        'image'
+                    );
+                } catch {
+                    try {
+                        profilePicture = await sock.profilePictureUrl(
+                            id,
+                            'image'
+                        );
+                    } catch {
+                        profilePicture = null;
+                    }
+                }
+
+                const isWelcome = action === 'add';
+
+                const title = isWelcome
+                    ? 'WELCOME TO THE FAMILY'
+                    : 'GOODBYE MEMBER';
+
+                const details = [
+                    '╭━━〔 KAYSEUR MDX 〕━━╮',
+                    '',
+                    isWelcome
+                        ? '✦ UN NOUVEAU MEMBRE NOUS REJOINT'
+                        : '✦ UN MEMBRE NOUS QUITTE',
+                    '',
+                    `👤 MEMBRE : @${phone}`,
+                    `👑 GROUPE : ${groupName}`,
+                    `👥 MEMBRES : ${membersCount}`,
+                    '',
+                    '📜 DESCRIPTION DU GROUPE :',
+                    groupDescription,
+                    '',
+                    isWelcome
+                        ? '🔥 RESPECTE LES RÈGLES ET PROFITE DE LA FAMILLE !'
+                        : '🖤 MERCI POUR TON PASSAGE. BONNE CONTINUATION !',
+                    '',
+                    '╰━━〔 MR KING KAYSEUR 〕━━╯'
+                ];
+
+                const caption = boxText(title, details);
+
+                if (profilePicture) {
+                    const message = {
+                        image: { url: profilePicture },
+                        caption,
+                        mentions: [user]
+                    };
+
+                    if (buttons.length) {
+                        message.templateButtons = buttons;
+                    }
+
+                    await sock.sendMessage(id, message);
+
+                } else {
+                    const message = {
+                        text: caption,
+                        mentions: [user]
+                    };
+
+                    if (buttons.length) {
+                        message.templateButtons = buttons;
+                    }
+
+                    await sock.sendMessage(id, message);
+                }
+            }
+
+        } catch (error) {
+            console.error(
+                '[WELCOME / GOODBYE ERROR]',
+                session.id,
+                error.stack || error.message
+            );
+        }
     });
 }
 
-function resolvePairingReadiness(value) {
-    if (pairingReadyResolver) {
-        pairingReadyResolver(value);
-        pairingReadyResolver = null;
-    }
-}
+// ======================================
+// CRÉER UNE NOUVELLE SESSION
+// ======================================
 
-async function waitForPairingReady() {
+app.post('/api/sessions', creationRateLimit, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+
+    try {
+        if (getSessionCount() >= MAX_SESSIONS) {
+            return res.status(503).json({
+                error: 'LIMITE DE 100 SESSIONS ATTEINTE'
+            });
+        }
+
+        const session = await createSession(attachSocketEvents);
+
+        console.log('[SESSION CREATED]', session.id);
+
+        return res.status(201).json({
+            sessionId: session.id,
+            token: session.accessToken,
+            status: session.status,
+            message: 'SESSION CRÉÉE. CONSERVE TON JETON PRIVÉ.'
+        });
+
+    } catch (error) {
+        console.error('[CREATE SESSION ERROR]', error.message);
+
+        return res.status(500).json({
+            error: error.message || 'SESSION_CREATION_FAILED'
+        });
+    }
+});
+
+// ======================================
+// ATTENDRE QUE WHATSAPP SOIT PRÊT
+// ======================================
+
+async function waitForSessionReady(session) {
+    if (session.qr || session.status === 'connected') {
+        return true;
+    }
+
+    if (!session.readyPromise) {
+        return false;
+    }
+
     let timeout;
 
     try {
         return await Promise.race([
-            pairingReadyPromise,
+            session.readyPromise,
             new Promise(resolve => {
                 timeout = setTimeout(
                     () => resolve(false),
@@ -169,151 +490,117 @@ async function waitForPairingReady() {
     }
 }
 
-function clearPairingData() {
-    pairingCode = null;
-    pairingPhone = null;
-    pairingCodeTime = 0;
-    pairingInProgress = null;
-}
-
 // ======================================
-// API PAIRING
+// PAIRING CODE PAR SESSION
 // ======================================
 
-app.get('/api/pairing', async (req, res) => {
+app.post('/api/sessions/:id/pairing', async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
-    const phone = String(req.query.phone || '')
+    const session = getAuthorizedSession(req);
+
+    if (!session) {
+        return res.status(401).json({
+            error: 'ACCÈS REFUSÉ'
+        });
+    }
+
+    const phone = String(req.body.phone || '')
         .replace(/\D/g, '');
 
-    if (!phone || phone.length < 8 || phone.length > 15) {
+    if (phone.length < 8 || phone.length > 15) {
         return res.status(400).json({
             error: 'NUMERO INVALIDE',
             details: 'Entre le numéro avec son indicatif international.'
         });
     }
 
-    if (!waSock) {
-        return res.status(503).json({
-            error: 'WHATSAPP EN ATTENTE',
-            details: 'Le bot WhatsApp est en cours de démarrage.'
-        });
-    }
-
-    if (waSock.authState.creds.registered) {
+    if (session.registered) {
         return res.status(409).json({
             error: 'WHATSAPP DEJA CONNECTE'
         });
     }
 
     if (
-        pairingCode &&
-        pairingPhone === phone &&
-        Date.now() - pairingCodeTime < PAIRING_CACHE_TIME
+        session.pairingCode &&
+        session.pairingPhone === phone &&
+        Date.now() - session.pairingCodeTime < PAIRING_CACHE_TIME
     ) {
         return res.json({
-            code: pairingCode
+            code: session.pairingCode
         });
     }
 
-    if (pairingInProgress) {
+    if (session.pairingInProgress) {
         return res.status(409).json({
-            error: 'PAIRING EN COURS',
-            details: 'Attends la fin de la demande actuelle.'
+            error: 'PAIRING EN COURS'
         });
     }
 
-    if (pairingCode && pairingPhone !== phone) {
-        return res.status(409).json({
-            error: 'CODE EXISTANT',
-            details: 'Un code existe déjà. Attends son expiration ou redémarre le service.'
-        });
-    }
+    session.pairingInProgress = (async () => {
+        const ready = await waitForSessionReady(session);
 
-    const currentSocket = waSock;
-
-    pairingInProgress = (async () => {
-        try {
-            console.log('[PAIRING] Préparation de la connexion...');
-
-            const ready = await waitForPairingReady();
-
-            if (!ready) {
-                throw new Error('WHATSAPP_NOT_READY');
-            }
-
-            if (
-                !waSock ||
-                waSock !== currentSocket ||
-                currentSocket.authState.creds.registered
-            ) {
-                throw new Error('SESSION_NOT_AVAILABLE');
-            }
-
-            const code = await currentSocket.requestPairingCode(phone);
-
-            if (!code || typeof code !== 'string') {
-                throw new Error('EMPTY_PAIRING_CODE');
-            }
-
-            if (waSock !== currentSocket) {
-                throw new Error('SOCKET_CHANGED');
-            }
-
-            pairingPhone = phone;
-            pairingCode = code.match(/.{1,4}/g)?.join('-') || code;
-            pairingCodeTime = Date.now();
-
-            console.log('[PAIRING] Code généré.');
-
-            return pairingCode;
-
-        } catch (error) {
-            console.error('[PAIRING ERROR]', error.message);
-
-            clearPairingData();
-
-            throw error;
+        if (!ready || !session.socket || session.registered) {
+            throw new Error('WHATSAPP_NOT_READY');
         }
+
+        const code = await session.socket.requestPairingCode(phone);
+
+        if (!code || typeof code !== 'string') {
+            throw new Error('EMPTY_PAIRING_CODE');
+        }
+
+        session.pairingPhone = phone;
+        session.pairingCode =
+            code.match(/.{1,4}/g)?.join('-') || code;
+        session.pairingCodeTime = Date.now();
+
+        return session.pairingCode;
     })();
 
     try {
-        const code = await pairingInProgress;
+        const code = await session.pairingInProgress;
 
-        return res.json({
-            code
-        });
+        return res.json({ code });
 
     } catch (error) {
+        console.error('[PAIRING ERROR]', session.id, error.message);
+
         return res.status(503).json({
             error: 'ERREUR DE PAIRING',
             details: error.message
         });
 
     } finally {
-        pairingInProgress = null;
+        session.pairingInProgress = null;
     }
 });
 
 // ======================================
-// API QR CODE
+// QR CODE PAR SESSION
 // ======================================
 
-app.get('/api/qr', async (req, res) => {
+app.get('/api/sessions/:id/qr', async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
-    if (!latestQR) {
+    const session = getAuthorizedSession(req);
+
+    if (!session) {
+        return res.status(401).json({
+            error: 'ACCÈS REFUSÉ'
+        });
+    }
+
+    if (!session.qr) {
         return res.json({
-            status: 'EN ATTENTE DU QR...'
+            status: session.status
         });
     }
 
     try {
-        const qrDataUrl = await QRCode.toDataURL(latestQR);
+        const qr = await QRCode.toDataURL(session.qr);
 
-        return res.json({
-            qr: qrDataUrl
-        });
+        return res.json({ qr });
 
     } catch (error) {
         console.error('[QR ERROR]', error.message);
@@ -325,7 +612,28 @@ app.get('/api/qr', async (req, res) => {
 });
 
 // ======================================
-// STATUS
+// STATUT D'UNE SESSION
+// ======================================
+
+app.get('/api/sessions/:id/status', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+
+    const session = getAuthorizedSession(req);
+
+    if (!session) {
+        return res.status(401).json({
+            error: 'ACCÈS REFUSÉ'
+        });
+    }
+
+    return res.json({
+        status: session.status,
+        registered: session.registered
+    });
+});
+
+// ======================================
+// STATUT GÉNÉRAL DU SERVEUR
 // ======================================
 
 app.get('/api/status', (req, res) => {
@@ -333,7 +641,9 @@ app.get('/api/status', (req, res) => {
 
     res.json({
         server: 'online',
-        whatsapp: waSock ? 'starting' : 'offline',
+        sessions: getActiveSessionCount(),
+        storedSessions: getSessionCount(),
+        maxSessions: MAX_SESSIONS,
         telegram: telegramBot ? 'configured' : 'disabled'
     });
 });
@@ -342,7 +652,7 @@ app.get('/api/status', (req, res) => {
 // SERVEUR
 // ======================================
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`[SERVER] KAYSEUR MDX lancé sur le port ${PORT}`);
 });
 
@@ -363,348 +673,46 @@ if (telegramBot && typeof telegramBot.launch === 'function') {
 }
 
 // ======================================
-// DÉMARRAGE WHATSAPP
+// RESTAURATION DES SESSIONS
 // ======================================
 
-async function startWhatsAppBot() {
-    if (startingWhatsApp) return;
-
-    startingWhatsApp = true;
-
+async function restoreWhatsAppSessions() {
     try {
-        const sessionPath = path.join(__dirname, 'session');
-
-        if (!fs.existsSync(sessionPath)) {
-            fs.mkdirSync(sessionPath, {
-                recursive: true
-            });
-        }
-
-        const { state, saveCreds } =
-            await useMultiFileAuthState(sessionPath);
-
-        latestQR = null;
-        clearPairingData();
-
-        resetPairingReadiness();
-
-        const sock = makeWASocket({
-            logger: pino({
-                level: 'silent'
-            }),
-
-            printQRInTerminal: false,
-
-            auth: state,
-
-            browser: [
-                'Ubuntu',
-                'Chrome',
-                '20.0.04'
-            ],
-
-            markOnlineOnConnect: false,
-            syncFullHistory: false
-        });
-
-        waSock = sock;
-
-        sock.ev.on('creds.update', saveCreds);
-
-        // ======================================
-        // CONNEXION
-        // ======================================
-
-        sock.ev.on('connection.update', async update => {
-            const {
-                connection,
-                lastDisconnect,
-                qr
-            } = update;
-
-            if (qr) {
-                latestQR = qr;
-                resolvePairingReadiness(true);
-
-                console.log('[WHATSAPP] QR disponible.');
-            }
-
-            if (connection === 'connecting') {
-                console.log('[WHATSAPP] Connexion en cours...');
-            }
-
-            if (connection === 'open') {
-                latestQR = null;
-
-                clearPairingData();
-                resolvePairingReadiness(false);
-
-                console.log('[WHATSAPP] KAYSEUR MDX connecté !');
-                console.log('[WHATSAPP] Connexion WhatsApp réussie.');
-            }
-
-            if (connection === 'close') {
-                const statusCode =
-                    lastDisconnect?.error instanceof Boom
-                        ? lastDisconnect.error.output?.statusCode
-                        : lastDisconnect?.error?.output?.statusCode ||
-                          lastDisconnect?.error?.statusCode;
-
-                const shouldReconnect =
-                    statusCode !== DisconnectReason.loggedOut;
-
-                console.log(
-                    '[WHATSAPP] Connexion fermée :',
-                    statusCode || 'raison inconnue'
-                );
-
-                latestQR = null;
-
-                if (waSock === sock) {
-                    waSock = null;
-                }
-
-                clearPairingData();
-                resolvePairingReadiness(false);
-
-                if (shouldReconnect && !reconnectTimer) {
-                    console.log('[WHATSAPP] Reconnexion dans 3 secondes...');
-
-                    reconnectTimer = setTimeout(() => {
-                        reconnectTimer = null;
-                        startWhatsAppBot();
-                    }, 3000);
-
-                } else if (!shouldReconnect) {
-                    console.log(
-                        '[WHATSAPP] Session déconnectée. Une nouvelle connexion est nécessaire.'
-                    );
-                }
-            }
-        });
-
-        // ======================================
-        // MESSAGES ET COMMANDES
-        // ======================================
-
-        sock.ev.on('messages.upsert', async ({ messages }) => {
-            if (!Array.isArray(messages)) return;
-
-            for (const mek of messages) {
-                try {
-                    if (!mek || !mek.message) continue;
-
-                    const remoteJid = mek.key?.remoteJid;
-
-                    if (
-                        !remoteJid ||
-                        remoteJid === 'status@broadcast'
-                    ) {
-                        continue;
-                    }
-
-                    if (mek.key?.fromMe) continue;
-
-                    const body = extractMessageBody(mek.message);
-
-                    if (!body || typeof body !== 'string') continue;
-
-                    const cleanBody = body.trim();
-
-                    if (!cleanBody) continue;
-
-                    const prefixes = [
-                        config.prefix,
-                        '🍓',
-                        '.'
-                    ].filter(Boolean);
-
-                    const uniquePrefixes = [
-                        ...new Set(prefixes)
-                    ].sort((a, b) => b.length - a.length);
-
-                    const usedPrefix = uniquePrefixes.find(prefix =>
-                        cleanBody.startsWith(prefix)
-                    );
-
-                    if (!usedPrefix) continue;
-
-                    const commandText = cleanBody
-                        .slice(usedPrefix.length)
-                        .trim();
-
-                    if (!commandText) continue;
-
-                    const parts = commandText.split(/\s+/);
-
-                    const command = parts.shift().toLowerCase();
-                    const args = parts;
-
-                    if (!command) continue;
-
-                    const pushName = mek.pushName || 'UTILISATEUR';
-
-                    console.log(`[COMMAND] ${command} | ${remoteJid}`);
-
-                    await handleCommand(
-                        sock,
-                        mek,
-                        body,
-                        command,
-                        args,
-                        pushName
-                    );
-
-                    console.log(`[COMMAND OK] ${command}`);
-
-                } catch (error) {
-                    console.error(
-                        '[COMMAND ERROR]',
-                        error.stack || error.message
-                    );
-                }
-            }
-        });
-
-        // ======================================
-        // WELCOME / GOODBYE — KAYSEUR MDX
-        // ======================================
-
-        sock.ev.on('group-participants.update', async update => {
-            const { id, participants, action } = update;
-
-            try {
-                if (!id || !Array.isArray(participants)) return;
-                if (action !== 'add' && action !== 'remove') return;
-
-                const metadata = await sock.groupMetadata(id);
-
-                const groupName = metadata.subject || 'GROUPE';
-                const groupDescription =
-                    metadata.desc || 'Aucune description définie';
-
-                const membersCount = metadata.participants.length;
-
-                const channelLink = config.channelLink || '';
-
-                const buttons = /^https?:\/\//i.test(channelLink)
-                    ? [{
-                        index: 1,
-                        urlButton: {
-                            displayText: '📢 VOIR NOTRE CHAÎNE',
-                            url: channelLink
-                        }
-                    }]
-                    : [];
-
-                for (const user of participants) {
-                    const phone = user.split('@')[0];
-
-                    let profilePicture = null;
-
-                    try {
-                        profilePicture = await sock.profilePictureUrl(
-                            user,
-                            'image'
-                        );
-                    } catch {
-                        try {
-                            profilePicture = await sock.profilePictureUrl(
-                                id,
-                                'image'
-                            );
-                        } catch {
-                            profilePicture = null;
-                        }
-                    }
-
-                    const isWelcome = action === 'add';
-
-                    const title = isWelcome
-                        ? 'WELCOME TO THE FAMILY'
-                        : 'GOODBYE MEMBER';
-
-                    const details = [
-                        '╭━━〔 KAYSEUR MDX 〕━━╮',
-                        '',
-                        isWelcome
-                            ? '✦ UN NOUVEAU MEMBRE NOUS REJOINT'
-                            : '✦ UN MEMBRE NOUS QUITTE',
-                        '',
-                        `👤 MEMBRE : @${phone}`,
-                        `👑 GROUPE : ${groupName}`,
-                        `👥 MEMBRES : ${membersCount}`,
-                        '',
-                        '📜 DESCRIPTION DU GROUPE :',
-                        groupDescription,
-                        '',
-                        isWelcome
-                            ? '🔥 RESPECTE LES RÈGLES ET PROFITE DE LA FAMILLE !'
-                            : '🖤 MERCI POUR TON PASSAGE. BONNE CONTINUATION !',
-                        '',
-                        '╰━━〔 MR KING KAYSEUR 〕━━╯'
-                    ];
-
-                    const caption = boxText(title, details);
-
-                    if (profilePicture) {
-                        const message = {
-                            image: { url: profilePicture },
-                            caption,
-                            mentions: [user]
-                        };
-
-                        if (buttons.length) {
-                            message.templateButtons = buttons;
-                        }
-
-                        await sock.sendMessage(id, message);
-
-                    } else {
-                        const message = {
-                            text: caption,
-                            mentions: [user]
-                        };
-
-                        if (buttons.length) {
-                            message.templateButtons = buttons;
-                        }
-
-                        await sock.sendMessage(id, message);
-                    }
-                }
-
-            } catch (error) {
-                console.error(
-                    '[WELCOME / GOODBYE ERROR]',
-                    error.stack || error.message
-                );
-            }
-        });
+        const restored = await restoreSessions(attachSocketEvents);
+
+        console.log(
+            `[SESSIONS] ${restored} session(s) restaurée(s).`
+        );
 
     } catch (error) {
         console.error(
-            '[WHATSAPP START ERROR]',
+            '[SESSION RESTORE ERROR]',
             error.stack || error.message
         );
-
-        waSock = null;
-        resolvePairingReadiness(false);
-
-        if (!reconnectTimer) {
-            reconnectTimer = setTimeout(() => {
-                reconnectTimer = null;
-                startWhatsAppBot();
-            }, 5000);
-        }
-
-    } finally {
-        startingWhatsApp = false;
     }
 }
 
+restoreWhatsAppSessions();
+
 // ======================================
-// LANCEMENT FINAL
+// ARRÊT PROPRE
 // ======================================
 
-startWhatsAppBot();
+async function shutdown() {
+    console.log('[SERVER] Arrêt demandé...');
+
+    server.close(() => {
+        console.log('[SERVER] Serveur arrêté.');
+    });
+
+    if (telegramBot && typeof telegramBot.stop === 'function') {
+        try {
+            telegramBot.stop('SIGTERM');
+        } catch (_) {}
+    }
+
+    process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
