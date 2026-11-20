@@ -2,7 +2,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const pino = require('pino');
+
 const QRCode = require('qrcode');
 
 const { Boom } = require('@hapi/boom');
@@ -17,7 +17,6 @@ const {
     MAX_SESSIONS,
     createSession,
     restoreSessions,
-    getSession,
     authenticateSession,
     getSessionCount,
     getActiveSessionCount
@@ -192,11 +191,19 @@ async function attachSocketEvents(sock, session) {
         const { connection, lastDisconnect } = update;
 
         if (connection === 'connecting') {
-            console.log('[WHATSAPP]', session.id, 'Connexion en cours...');
+            console.log(
+                '[WHATSAPP]',
+                session.id,
+                'Connexion en cours...'
+            );
         }
 
         if (connection === 'open') {
-            console.log('[WHATSAPP]', session.id, 'Connecté !');
+            console.log(
+                '[WHATSAPP]',
+                session.id,
+                'Connecté !'
+            );
         }
 
         if (connection === 'close') {
@@ -296,7 +303,9 @@ async function attachSocketEvents(sock, session) {
                     pushName
                 );
 
-                console.log(`[COMMAND OK] ${session.id} | ${command}`);
+                console.log(
+                    `[COMMAND OK] ${session.id} | ${command}`
+                );
 
             } catch (error) {
                 console.error(
@@ -452,7 +461,10 @@ app.post('/api/sessions', creationRateLimit, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[CREATE SESSION ERROR]', error.message);
+        console.error(
+            '[CREATE SESSION ERROR]',
+            error.message
+        );
 
         return res.status(500).json({
             error: error.message || 'SESSION_CREATION_FAILED'
@@ -551,8 +563,10 @@ app.post('/api/sessions/:id/pairing', async (req, res) => {
         }
 
         session.pairingPhone = phone;
+
         session.pairingCode =
             code.match(/.{1,4}/g)?.join('-') || code;
+
         session.pairingCodeTime = Date.now();
 
         return session.pairingCode;
@@ -564,7 +578,11 @@ app.post('/api/sessions/:id/pairing', async (req, res) => {
         return res.json({ code });
 
     } catch (error) {
-        console.error('[PAIRING ERROR]', session.id, error.message);
+        console.error(
+            '[PAIRING ERROR]',
+            session.id,
+            error.message
+        );
 
         return res.status(503).json({
             error: 'ERREUR DE PAIRING',
@@ -653,7 +671,9 @@ app.get('/api/status', (req, res) => {
 // ======================================
 
 const server = app.listen(PORT, () => {
-    console.log(`[SERVER] KAYSEUR MDX lancé sur le port ${PORT}`);
+    console.log(
+        `[SERVER] KAYSEUR MDX lancé sur le port ${PORT}`
+    );
 });
 
 // ======================================
@@ -669,7 +689,9 @@ if (telegramBot && typeof telegramBot.launch === 'function') {
             console.error('[TELEGRAM ERROR]', error.message);
         });
 } else {
-    console.log('[TELEGRAM] Désactivé. WhatsApp continue normalement.');
+    console.log(
+        '[TELEGRAM] Désactivé. WhatsApp continue normalement.'
+    );
 }
 
 // ======================================
@@ -678,10 +700,10 @@ if (telegramBot && typeof telegramBot.launch === 'function') {
 
 async function restoreWhatsAppSessions() {
     try {
-        const restored = await restoreSessions(attachSocketEvents);
+        await restoreSessions(attachSocketEvents);
 
         console.log(
-            `[SESSIONS] ${restored} session(s) restaurée(s).`
+            `[SESSIONS] ${getSessionCount()} session(s) enregistrée(s).`
         );
 
     } catch (error) {
@@ -695,15 +717,13 @@ async function restoreWhatsAppSessions() {
 restoreWhatsAppSessions();
 
 // ======================================
-// ARRÊT PROPRE
+// ARRÊT DU SERVEUR
 // ======================================
 
 async function shutdown() {
     console.log('[SERVER] Arrêt demandé...');
 
-    server.close(() => {
-        console.log('[SERVER] Serveur arrêté.');
-    });
+    server.close();
 
     if (telegramBot && typeof telegramBot.stop === 'function') {
         try {
