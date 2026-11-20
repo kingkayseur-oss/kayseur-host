@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -7,7 +6,8 @@ const pino = require('pino');
 const {
     default: makeWASocket,
     useMultiFileAuthState,
-    DisconnectReason
+    DisconnectReason,
+    fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 
 const MAX_SESSIONS = 100;
@@ -133,21 +133,27 @@ async function startSocket(session, attachSocketEvents) {
                 saveCreds
             } = await useMultiFileAuthState(folder);
 
+            const { version } = await fetchLatestBaileysVersion();
+
             if (session.stopped) {
                 return null;
             }
 
             const sock = makeWASocket({
+                version,
                 auth: state,
                 logger,
                 printQRInTerminal: false,
                 browser: [
-                    'KAYSEUR MDX',
+                    'Ubuntu',
                     'Chrome',
-                    '1.0.0'
+                    '20.0.04'
                 ],
                 syncFullHistory: false,
-                markOnlineOnConnect: false
+                markOnlineOnConnect: false,
+                connectTimeoutMs: 60000,
+                defaultQueryTimeoutMs: 60000,
+                keepAliveIntervalMs: 10000
             });
 
             session.socket = sock;
@@ -179,6 +185,7 @@ async function startSocket(session, attachSocketEvents) {
                     session.status = 'connected';
                     session.registered = true;
                     session.qr = null;
+                    session.pairingCode = null;
 
                     resolveReady(session, true);
 
@@ -206,6 +213,10 @@ async function startSocket(session, attachSocketEvents) {
                             session.id
                         );
                     } else {
+                        // Évite de couper brutalement si un pairing code est en cours de saisie
+                        if (session.pairingCode && Date.now() - session.pairingCodeTime < 60000) {
+                            return;
+                        }
                         session.status = 'reconnecting';
                         scheduleReconnect(session);
                     }
