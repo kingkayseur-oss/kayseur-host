@@ -161,7 +161,11 @@ async function startSocket(session, attachSocketEvents) {
                     return;
                 }
 
-                const { connection, lastDisconnect, qr } = update;
+                const {
+                    connection,
+                    lastDisconnect,
+                    qr
+                } = update;
 
                 if (qr) {
                     session.qr = qr;
@@ -378,12 +382,14 @@ function authenticateSession(id, token) {
 
     if (!session || !token) return null;
 
-    if (
-        !crypto.timingSafeEqual(
-            Buffer.from(session.accessToken),
-            Buffer.from(String(token))
-        )
-    ) {
+    const savedToken = Buffer.from(session.accessToken);
+    const receivedToken = Buffer.from(String(token));
+
+    if (savedToken.length !== receivedToken.length) {
+        return null;
+    }
+
+    if (!crypto.timingSafeEqual(savedToken, receivedToken)) {
         return null;
     }
 
