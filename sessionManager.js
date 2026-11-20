@@ -119,7 +119,7 @@ async function startSocket(session, attachSocketEvents) {
     session.attachSocketEvents =
         attachSocketEvents || session.attachSocketEvents;
 
-    session.startPromise = (async () => {
+    const startPromise = (async () => {
         try {
             session.status = 'starting';
             session.qr = null;
@@ -132,6 +132,10 @@ async function startSocket(session, attachSocketEvents) {
                 state,
                 saveCreds
             } = await useMultiFileAuthState(folder);
+
+            if (session.stopped) {
+                return null;
+            }
 
             const sock = makeWASocket({
                 auth: state,
@@ -147,9 +151,7 @@ async function startSocket(session, attachSocketEvents) {
             });
 
             session.socket = sock;
-            session.registered = Boolean(
-                state.creds.registered
-            );
+            session.registered = Boolean(state.creds.registered);
 
             sock.ev.on('creds.update', saveCreds);
 
@@ -215,12 +217,17 @@ async function startSocket(session, attachSocketEvents) {
             }
 
             return sock;
+
         } finally {
-            session.startPromise = null;
+            if (session.startPromise === startPromise) {
+                session.startPromise = null;
+            }
         }
     })();
 
-    return session.startPromise;
+    session.startPromise = startPromise;
+
+    return startPromise;
 }
 
 async function createSession(attachSocketEvents) {
@@ -279,8 +286,13 @@ async function createSession(attachSocketEvents) {
         await startSocket(session, attachSocketEvents);
 
         return session;
+
     } catch (error) {
         sessions.delete(id);
+
+        try {
+            session.socket?.end(undefined);
+        } catch (_) {}
 
         fs.rmSync(folder, {
             recursive: true,
@@ -413,11 +425,31 @@ function stopSession(id) {
 
     try {
         session.socket?.end(undefined);
-    } catch (_) {}
+    } catch (error) {
+        console.error(
+            '[SESSION STOP ERROR]',
+            id,
+            error.message
+        );
+    }
 
     sessions.delete(id);
 
     return true;
+}
+
+async function stopAllSessions() {
+    const ids = [...sessions.keys()];
+
+    for (const id of ids) {
+        stopSession(id);
+    }
+
+    console.log(
+        `[SESSIONS] ${ids.length} session(s) arrêtée(s).`
+    );
+
+    return ids.length;
 }
 
 module.exports = {
@@ -428,5 +460,6 @@ module.exports = {
     authenticateSession,
     getSessionCount,
     getActiveSessionCount,
-    stopSession
+    stopSession,
+    stopAllSessions
 };
