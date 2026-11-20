@@ -305,17 +305,53 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
             // ==================================
 
             case 'groupinfo': {
-                const metadata = await getGroupData(sock, remoteJid);
+    if (!remoteJid.endsWith('@g.us')) {
+        return reply('❌ Cette commande fonctionne uniquement dans un groupe.');
+    }
 
-                const admins = metadata.participants.filter(
-                    p => p.admin || p.superadmin
-                ).length;
+    try {
+        const metadata = await sock.groupMetadata(remoteJid);
 
-                await reply(sock, remoteJid, mek,
-                    `╭━━〔 GROUP INFO 〕━━╮\n┃ 👑 Nom : ${metadata.subject}\n┃ 👥 Membres : ${metadata.participants.length}\n┃ 🛡️ Administrateurs : ${admins}\n┃ 📜 Description : ${metadata.desc || 'Aucune description'}\n╰━━━━━━━━━━━━━━━━━━`
-                );
-                break;
-            }
+        let description = 'Aucune description définie';
+
+        // Récupérer la vraie description WhatsApp
+        if (metadata.desc && metadata.desc.trim()) {
+            description = metadata.desc.trim();
+        }
+
+        const admins = metadata.participants.filter(
+            p => p.admin === 'admin' || p.admin === 'superadmin'
+        ).length;
+
+        const members = metadata.participants.length;
+
+        const text = `
+╭━━〔 ♛ KAYSEUR MDX ♛ 〕━━╮
+┃    INFORMATIONS DU GROUPE
+╰━━━━━━━━━━━━━━━━━━━━╯
+
+📌 Nom : ${metadata.subject || '@Inconnu'}
+
+📝 DESCRIPTION :
+${description}
+
+👥 Membres : ${members}
+👑 Administrateurs : ${admins}
+
+╰━━〔 MR KING KAYSEUR 〕━━╯
+`.trim();
+
+        await sock.sendMessage(remoteJid, {
+            text
+        }, { quoted: mek });
+
+    } catch (error) {
+        console.error('[GROUPINFO ERROR]', error);
+        await reply('❌ Impossible de récupérer les informations du groupe.');
+    }
+
+    break;
+}
 
             case 'admins': {
                 const metadata = await getGroupData(sock, remoteJid);
@@ -441,7 +477,7 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
                 const start = Date.now();
 
                 await reply(sock, remoteJid, mek,
-                    `🏓 PONG !\n⚡ Réponse : ${Date.now() - start} ms\n👑 KAYSEUR MDX est actif.`
+                    `🏓 PONG !\n⚡ Réponse : ${Date.now() - start} ms\n👑 KAYSEUR MDX est actif 🚀.`
                 );
                 break;
             }
@@ -466,7 +502,7 @@ async function handleCommand(sock, mek, body, command, args, pushName) {
 
             case 'repo': {
                 await reply(sock, remoteJid, mek,
-                    '💻 KAYSEUR MDX — Dépôt du projet :\nhttps://github.com/kingkayseur-oss/KAYSEUR_MDX_BOT_WHATSAPP-'
+                    '💻 KAYSEUR MDX — Dépôt du projet :\nhttps://github.com/kingkayseur-oss/kayseur-host'
                 );
                 break;
             }
