@@ -11,14 +11,35 @@ const { DisconnectReason } = require('@whiskeysockets/baileys');
 const config = require('./config');
 const { boxText } = require('./src/font');
 const { handleCommand } = require('./src/commands/handler');
-const telegramBot = require('./src/telegram');
+
+// ======================================
+// TELEGRAM FACULTATIF
+// ======================================
+
+let telegramBot = null;
+let telegramStatus = 'disabled';
+
+try {
+    telegramBot = require('./src/telegram');
+
+    if (telegramBot && typeof telegramBot.launch === 'function') {
+        telegramStatus = 'starting';
+    }
+} catch (error) {
+    telegramBot = null;
+    telegramStatus = 'disabled';
+
+    console.error(
+        '[TELEGRAM] Module indisponible. WhatsApp continue normalement.',
+        error.message
+    );
+}
 
 const {
     MAX_SESSIONS,
     createSession,
     restoreSessions,
     authenticateSession,
-    getSession,
     getSessionCount,
     getActiveSessionCount,
     stopAllSessions
@@ -656,7 +677,7 @@ app.get('/api/status', (req, res) => {
         sessions: getActiveSessionCount(),
         storedSessions: getSessionCount(),
         maxSessions: MAX_SESSIONS,
-        telegram: telegramBot ? 'configured' : 'disabled'
+        telegram: telegramStatus
     });
 });
 
@@ -671,25 +692,36 @@ const server = app.listen(PORT, () => {
 });
 
 // ======================================
-// TELEGRAM OPTIONNEL
+// DÉMARRAGE TELEGRAM SANS BLOQUER WHATSAPP
 // ======================================
 
 if (telegramBot && typeof telegramBot.launch === 'function') {
-    telegramBot.launch()
+
+    Promise.resolve()
+        .then(() => telegramBot.launch())
         .then(() => {
+            telegramStatus = 'connected';
             console.log('[TELEGRAM] Bot démarré.');
         })
         .catch(error => {
-            console.error('[TELEGRAM ERROR]', error.message);
+            telegramStatus = 'error';
+
+            console.error(
+                '[TELEGRAM ERROR] Telegram indisponible. WhatsApp continue normalement.',
+                error.message
+            );
         });
+
 } else {
+    telegramStatus = 'disabled';
+
     console.log(
         '[TELEGRAM] Désactivé. WhatsApp continue normalement.'
     );
 }
 
 // ======================================
-// RESTAURATION DES SESSIONS
+// RESTAURATION DES SESSIONS WHATSAPP
 // ======================================
 
 async function restoreWhatsAppSessions() {
