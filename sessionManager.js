@@ -6,349 +6,302 @@ const pino = require('pino');
 
 const {
     default: makeWASocket,
-    DisconnectReason,
-    useMultiFileAuthState
+    useMultiFileAuthState,
+    DisconnectReason
 } = require('@whiskeysockets/baileys');
 
 const MAX_SESSIONS = 100;
-
 const SESSION_DIR = path.resolve(
     process.env.SESSION_DIR || './sessions'
 );
 
 const sessions = new Map();
+const logger = pino({ level: 'silent' });
 
-fs.mkdirSync(SESSION_DIR, {
-    recursive: true,
-    mode: 0o700
-});
+fs.mkdirSync(SESSION_DIR, { recursive: true });
 
 function generateId() {
     return crypto.randomBytes(24).toString('hex');
 }
 
-function generateAccessToken() {
+function generateToken() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-function validId(id) {
-    return typeof id === 'string' &&
-        /^[a-f0-9]{48}$/.test(id);
+function getSessionFolder(id) {
+    return path.join(SESSION_DIR, id);
 }
 
 function countStoredSessions() {
+    if (!fs.existsSync(SESSION_DIR)) return 0;
+
     return fs.readdirSync(SESSION_DIR, {
         withFileTypes: true
-    }).filter(entry => {
-        return entry.isDirectory() &&
-            fs.existsSync(
-                path.join(
-                    SESSION_DIR,
-                    entry.name,
-                    'session.json'
-                )
-            );
+    }).filter(item => {
+        if (!item.isDirectory()) return false;
+
+        const metadata = path.join(
+            SESSION_DIR,
+            item.name,
+            'session.json'
+        );
+
+        return fs.existsSync(metadata);
     }).length;
 }
 
-function saveMetadata(session) {
-    const file = path.join(
-        session.path,
-        'session.json'
-    );
-
-    fs.writeFileSync(
-        file,
-        JSON.stringify({
-            id: session.id,
-            accessToken: session.accessToken,
-            createdAt: session.createdAt
-        }, null, 2),
-        { mode: 0o600 }
-    );
-
-    try {
-        fs.chmodSync(file, 0o600);
-        fs.chmodSync(session.path, 0o700);
-    } catch (_) {}
+function getSessionCount() {
+    return countStoredSessions();
 }
 
-function prepareReadyPromise(session) {
+function getActiveSessionCount() {
+    return [...sessions.values()].filter(session =>
+        session.status === 'connected' ||
+        session.status === 'qr' ||
+        session.status === 'starting' ||
+        session.status === 'reconnecting'
+    ).length;
+}
+
+function resolveReady(session, value) {
+    if (session.resolveReady) {
+        session.resolveReady(value);
+        session.resolveReady = null;
+    }
+}
+
+function createReadyPromise(session) {
     session.readyPromise = new Promise(resolve => {
         session.resolveReady = resolve;
     });
 }
 
-function resolveReady(session, result) {
-    if (session.resolveReady) {
-        session.resolveReady(result);
-        session.resolveReady = null;
-    }
-}
-
-function scheduleReconnect(session, onSocket, delay = 3000) {
+function scheduleReconnect(session) {
     if (
         session.stopped ||
         session.status === 'logged_out' ||
-        session.reconnectTimer ||
-        !sessions.has(session.id)
+        session.reconnectTimer
     ) {
         return;
     }
 
+    session.status = 'reconnecting';
+
     session.reconnectTimer = setTimeout(async () => {
         session.reconnectTimer = null;
 
-        if (
-            session.stopped ||
-            !sessions.has(session.id)
-        ) {
-            return;
-        }
-
         try {
-            await startSocket(session, onSocket);
-            console.log('[SESSION RECONNECTED]', session.id);
-
+            await startSocket(
+                session,
+                session.attachSocketEvents
+            );
         } catch (error) {
-            session.status = 'error';
-
             console.error(
-                '[SESSION RECONNECT ERROR]',
+                'Erreur reconnexion session:',
                 session.id,
                 error.message
             );
 
-            scheduleReconnect(session, onSocket, 5000);
+            scheduleReconnect(session);
         }
-    }, delay);
-
-    session.reconnectTimer.unref?.();
+    }, 5000);
 }
 
-async function startSocket(session, onSocket) {
+async function startSocket(session, attachSocketEvents) {
     if (session.stopped) {
-        throw new Error('SESSION_STOPPED');
+        throw new Error('Session arrêtée');
     }
 
-    if (session.starting) {
-        return session.socket;
+    if (session.startPromise) {
+        return session.startPromise;
     }
 
-    session.starting = true;
+    session.attachSocketEvents =
+        attachSocketEvents || session.attachSocketEvents;
 
-    try {
-        const { state, saveCreds } =
-            await useMultiFileAuthState(session.path);
+    session.startPromise = (async () => {
+        try {
+            session.status = 'starting';
+            session.qr = null;
 
-        if (session.stopped) {
-            throw new Error('SESSION_STOPPED');
-        }
+            const folder = getSessionFolder(session.id);
 
-        prepareReadyPromise(session);
+            fs.mkdirSync(folder, { recursive: true });
 
-        const sock = makeWASocket({
-            logger: pino({ level: 'silent' }),
-            printQRInTerminal: false,
-            auth: state,
-            browser: ['KAYSEUR MDX', 'Chrome', '1.0.0'],
-            markOnlineOnConnect: false,
-            syncFullHistory: false
-        });
+            const {
+                state,
+                saveCreds
+            } = await useMultiFileAuthState(folder);
 
-        session.socket = sock;
-        session.status = 'connecting';
-        session.registered = Boolean(state.creds.registered);
+            const sock = makeWASocket({
+                auth: state,
+                logger,
+                printQRInTerminal: false,
+                browser: [
+                    'KAYSEUR MDX',
+                    'Chrome',
+                    '1.0.0'
+                ],
+                syncFullHistory: false,
+                markOnlineOnConnect: false
+            });
 
-        sock.ev.on('creds.update', async () => {
-            if (session.socket !== sock) return;
+            session.socket = sock;
+            session.registered = Boolean(
+                state.creds.registered
+            );
 
-            try {
-                await saveCreds();
-                session.registered = Boolean(state.creds.registered);
+            sock.ev.on('creds.update', saveCreds);
 
-            } catch (error) {
-                console.error(
-                    '[SESSION SAVE ERROR]',
-                    error.message
-                );
-            }
-        });
-
-        sock.ev.on('connection.update', update => {
-            if (session.socket !== sock) return;
-            if (session.stopped) return;
-
-            if (update.qr) {
-                session.qr = update.qr;
-                session.status = 'waiting_scan';
-                resolveReady(session, true);
-            }
-
-            if (update.connection === 'connecting') {
-                session.status = 'connecting';
-            }
-
-            if (update.connection === 'open') {
-                session.qr = null;
-                session.pairingCode = null;
-                session.registered = true;
-                session.status = 'connected';
-
-                resolveReady(session, true);
-
-                console.log(
-                    '[SESSION CONNECTED]',
-                    session.id
-                );
-            }
-
-            if (update.connection === 'close') {
-                const statusCode =
-                    update.lastDisconnect?.error?.output?.statusCode;
-
-                session.qr = null;
-
-                resolveReady(session, false);
-
-                if (statusCode === DisconnectReason.loggedOut) {
-                    session.status = 'logged_out';
-
-                    console.log(
-                        '[SESSION LOGGED OUT]',
-                        session.id
-                    );
-
+            sock.ev.on('connection.update', update => {
+                if (
+                    session.socket !== sock ||
+                    session.stopped
+                ) {
                     return;
                 }
 
-                session.status = 'disconnected';
+                const { connection, lastDisconnect, qr } = update;
 
-                console.log(
-                    '[SESSION DISCONNECTED]',
-                    session.id
-                );
+                if (qr) {
+                    session.qr = qr;
+                    session.status = 'qr';
+                    resolveReady(session, true);
+                }
 
-                scheduleReconnect(session, onSocket);
+                if (connection === 'open') {
+                    session.status = 'connected';
+                    session.registered = true;
+                    session.qr = null;
+
+                    resolveReady(session, true);
+
+                    console.log(
+                        'Session connectée:',
+                        session.id
+                    );
+                }
+
+                if (connection === 'close') {
+                    const statusCode =
+                        lastDisconnect?.error?.output?.statusCode;
+
+                    session.qr = null;
+
+                    if (
+                        statusCode === DisconnectReason.loggedOut
+                    ) {
+                        session.status = 'logged_out';
+                        session.registered = false;
+                        resolveReady(session, false);
+
+                        console.log(
+                            'Session déconnectée:',
+                            session.id
+                        );
+                    } else {
+                        session.status = 'reconnecting';
+                        scheduleReconnect(session);
+                    }
+                }
+            });
+
+            if (session.attachSocketEvents) {
+                session.attachSocketEvents(sock, session);
             }
-        });
 
-        if (typeof onSocket === 'function') {
-            await onSocket(sock, session);
+            return sock;
+        } finally {
+            session.startPromise = null;
         }
+    })();
 
-        return sock;
-
-    } finally {
-        session.starting = false;
-    }
+    return session.startPromise;
 }
 
-function createSessionObject(
-    id,
-    accessToken,
-    sessionPath,
-    createdAt
-) {
-    return {
-        id,
-        accessToken,
-        path: sessionPath,
+async function createSession(attachSocketEvents) {
+    const currentCount = getSessionCount();
 
-        socket: null,
-        status: 'connecting',
-
-        qr: null,
-        pairingCode: null,
-
-        registered: false,
-        createdAt,
-
-        resolveReady: null,
-        readyPromise: null,
-
-        reconnectTimer: null,
-        starting: false,
-        stopped: false
-    };
-}
-
-async function createSession(onSocket) {
-    // La vérification et la création sont synchrones
-    // avant le premier await : protection dans un processus Node.js.
-
-    if (countStoredSessions() >= MAX_SESSIONS) {
-        throw new Error('LIMIT_100_SESSIONS');
+    if (currentCount >= MAX_SESSIONS) {
+        throw new Error('Limite de 100 sessions atteinte');
     }
 
     const id = generateId();
-    const accessToken = generateAccessToken();
+    const accessToken = generateToken();
+    const folder = getSessionFolder(id);
 
-    const sessionPath = path.join(
-        SESSION_DIR,
-        id
-    );
-
-    fs.mkdirSync(sessionPath, {
-        recursive: true,
-        mode: 0o700
-    });
-
-    const session = createSessionObject(
+    const session = {
         id,
         accessToken,
-        sessionPath,
-        Date.now()
-    );
+        createdAt: Date.now(),
+        status: 'starting',
+        registered: false,
+        qr: null,
+        socket: null,
+        reconnectTimer: null,
+        startPromise: null,
+        stopped: false,
+        attachSocketEvents
+    };
+
+    createReadyPromise(session);
+
+    fs.mkdirSync(folder, { recursive: true });
 
     try {
-        saveMetadata(session);
+        const metadata = {
+            id,
+            accessToken,
+            createdAt: session.createdAt
+        };
+
+        const metadataPath = path.join(
+            folder,
+            'session.json'
+        );
+
+        fs.writeFileSync(
+            metadataPath,
+            JSON.stringify(metadata, null, 2),
+            { mode: 0o600 }
+        );
+
+        try {
+            fs.chmodSync(metadataPath, 0o600);
+        } catch (_) {}
 
         sessions.set(id, session);
 
-        await startSocket(session, onSocket);
+        await startSocket(session, attachSocketEvents);
 
         return session;
-
     } catch (error) {
         sessions.delete(id);
 
-        session.stopped = true;
-
-        try {
-            session.socket?.end(undefined);
-        } catch (_) {}
-
-        try {
-            fs.rmSync(sessionPath, {
-                recursive: true,
-                force: true
-            });
-        } catch (_) {}
+        fs.rmSync(folder, {
+            recursive: true,
+            force: true
+        });
 
         throw error;
     }
 }
 
-async function restoreSessions(onSocket) {
-    const entries = fs.readdirSync(SESSION_DIR, {
+async function restoreSessions(attachSocketEvents) {
+    fs.mkdirSync(SESSION_DIR, { recursive: true });
+
+    const folders = fs.readdirSync(SESSION_DIR, {
         withFileTypes: true
-    });
+    }).filter(item => item.isDirectory());
 
-    let restored = 0;
-
-    for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        if (!validId(entry.name)) continue;
-        if (restored >= MAX_SESSIONS) break;
-
-        const sessionPath = path.join(
+    for (const item of folders) {
+        const folder = path.join(
             SESSION_DIR,
-            entry.name
+            item.name
         );
 
         const metadataPath = path.join(
-            sessionPath,
+            folder,
             'session.json'
         );
 
@@ -360,97 +313,90 @@ async function restoreSessions(onSocket) {
             );
 
             if (
-                metadata.id !== entry.name ||
-                typeof metadata.accessToken !== 'string' ||
-                !/^[a-f0-9]{64}$/.test(metadata.accessToken)
+                !metadata.id ||
+                !metadata.accessToken ||
+                metadata.id !== item.name
             ) {
                 continue;
             }
 
-            const session = createSessionObject(
-                metadata.id,
-                metadata.accessToken,
-                sessionPath,
-                metadata.createdAt || Date.now()
-            );
+            if (sessions.has(metadata.id)) continue;
 
+            const session = {
+                id: metadata.id,
+                accessToken: metadata.accessToken,
+                createdAt: metadata.createdAt || Date.now(),
+                status: 'starting',
+                registered: false,
+                qr: null,
+                socket: null,
+                reconnectTimer: null,
+                startPromise: null,
+                stopped: false,
+                attachSocketEvents
+            };
+
+            createReadyPromise(session);
             sessions.set(session.id, session);
-            restored++;
-
-            try {
-                await startSocket(session, onSocket);
-
-                console.log(
-                    '[SESSION RESTORED]',
-                    session.id
-                );
-
-            } catch (error) {
-                session.status = 'error';
-
-                console.error(
-                    '[SESSION RESTORE ERROR]',
-                    session.id,
-                    error.message
-                );
-
-                scheduleReconnect(session, onSocket, 5000);
-            }
 
         } catch (error) {
             console.error(
-                '[SESSION METADATA ERROR]',
-                error.message
+                'Métadonnées invalides:',
+                item.name
             );
         }
     }
 
-    return restored;
+    const restored = [...sessions.values()];
+
+    await Promise.allSettled(
+        restored.map(session =>
+            startSocket(session, attachSocketEvents)
+                .catch(error => {
+                    console.error(
+                        'Restauration impossible:',
+                        session.id,
+                        error.message
+                    );
+
+                    scheduleReconnect(session);
+                })
+        )
+    );
+
+    console.log(
+        `Sessions restaurées: ${sessions.size}/${MAX_SESSIONS}`
+    );
 }
 
 function getSession(id) {
-    if (!validId(id)) return null;
-
     return sessions.get(id) || null;
 }
 
 function authenticateSession(id, token) {
     const session = getSession(id);
 
-    if (!session || typeof token !== 'string') {
+    if (!session || !token) return null;
+
+    if (
+        !crypto.timingSafeEqual(
+            Buffer.from(session.accessToken),
+            Buffer.from(String(token))
+        )
+    ) {
         return null;
     }
 
-    const expected = Buffer.from(session.accessToken);
-    const received = Buffer.from(token);
-
-    if (expected.length !== received.length) {
-        return null;
-    }
-
-    return crypto.timingSafeEqual(expected, received)
-        ? session
-        : null;
+    return session;
 }
 
-function getSessionCount() {
-    return countStoredSessions();
-}
-
-function getActiveSessionCount() {
-    return Array.from(sessions.values()).filter(session => {
-        return !session.stopped &&
-            session.status !== 'logged_out' &&
-            session.status !== 'error';
-    }).length;
-}
-
-async function stopSession(id) {
+function stopSession(id) {
     const session = getSession(id);
 
     if (!session) return false;
 
     session.stopped = true;
+    session.status = 'stopped';
 
     if (session.reconnectTimer) {
         clearTimeout(session.reconnectTimer);
@@ -461,12 +407,7 @@ async function stopSession(id) {
 
     try {
         session.socket?.end(undefined);
-    } catch (error) {
-        console.error(
-            '[SESSION STOP ERROR]',
-            error.message
-        );
-    }
+    } catch (_) {}
 
     sessions.delete(id);
 
