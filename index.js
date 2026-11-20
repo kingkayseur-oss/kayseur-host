@@ -43,7 +43,7 @@ const {
     getSessionCount,
     getActiveSessionCount,
     stopAllSessions
-} = require('./src/sessionManager');
+} = require('./sessionManager'); // <-- Retiré "/src";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
