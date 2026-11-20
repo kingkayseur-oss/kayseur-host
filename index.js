@@ -206,7 +206,6 @@ app.get('/api/pairing', async (req, res) => {
         });
     }
 
-    // Réutilisation du code récent
     if (
         pairingCode &&
         pairingPhone === phone &&
@@ -217,7 +216,6 @@ app.get('/api/pairing', async (req, res) => {
         });
     }
 
-    // Évite les demandes simultanées pour différents numéros
     if (pairingInProgress) {
         return res.status(409).json({
             error: 'PAIRING EN COURS',
@@ -426,7 +424,6 @@ async function startWhatsAppBot() {
 
             if (qr) {
                 latestQR = qr;
-
                 resolvePairingReadiness(true);
 
                 console.log('[WHATSAPP] QR disponible.');
@@ -434,23 +431,16 @@ async function startWhatsAppBot() {
 
             if (connection === 'connecting') {
                 console.log('[WHATSAPP] Connexion en cours...');
-
-                // Permet au système de pairing de commencer
-                resolvePairingReadiness(true);
             }
 
             if (connection === 'open') {
                 latestQR = null;
 
                 clearPairingData();
-
                 resolvePairingReadiness(false);
 
                 console.log('[WHATSAPP] KAYSEUR MDX connecté !');
-
-                console.log(
-                    '[WHATSAPP] Connexion WhatsApp réussie.'
-                );
+                console.log('[WHATSAPP] Connexion WhatsApp réussie.');
             }
 
             if (connection === 'close') {
@@ -475,13 +465,10 @@ async function startWhatsAppBot() {
                 }
 
                 clearPairingData();
-
                 resolvePairingReadiness(false);
 
                 if (shouldReconnect && !reconnectTimer) {
-                    console.log(
-                        '[WHATSAPP] Reconnexion dans 3 secondes...'
-                    );
+                    console.log('[WHATSAPP] Reconnexion dans 3 secondes...');
 
                     reconnectTimer = setTimeout(() => {
                         reconnectTimer = null;
@@ -500,7 +487,7 @@ async function startWhatsAppBot() {
         // MESSAGES ET COMMANDES
         // ======================================
 
-        sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        sock.ev.on('messages.upsert', async ({ messages }) => {
             if (!Array.isArray(messages)) return;
 
             for (const mek of messages) {
@@ -516,22 +503,16 @@ async function startWhatsAppBot() {
                         continue;
                     }
 
-                    // Ne traite pas les messages envoyés par le bot
-                    if (mek.key?.fromMe) {
-                        continue;
-                    }
+                    if (mek.key?.fromMe) continue;
 
                     const body = extractMessageBody(mek.message);
 
-                    if (!body || typeof body !== 'string') {
-                        continue;
-                    }
+                    if (!body || typeof body !== 'string') continue;
 
                     const cleanBody = body.trim();
 
                     if (!cleanBody) continue;
 
-                    // Préfixes autorisés
                     const prefixes = [
                         config.prefix,
                         '🍓',
@@ -556,20 +537,14 @@ async function startWhatsAppBot() {
 
                     const parts = commandText.split(/\s+/);
 
-                    const command = parts
-                        .shift()
-                        .toLowerCase();
-
+                    const command = parts.shift().toLowerCase();
                     const args = parts;
 
                     if (!command) continue;
 
-                    const pushName =
-                        mek.pushName || 'UTILISATEUR';
+                    const pushName = mek.pushName || 'UTILISATEUR';
 
-                    console.log(
-                        `[COMMAND] ${command} | ${remoteJid}`
-                    );
+                    console.log(`[COMMAND] ${command} | ${remoteJid}`);
 
                     await handleCommand(
                         sock,
@@ -580,9 +555,7 @@ async function startWhatsAppBot() {
                         pushName
                     );
 
-                    console.log(
-                        `[COMMAND OK] ${command}`
-                    );
+                    console.log(`[COMMAND OK] ${command}`);
 
                 } catch (error) {
                     console.error(
@@ -594,82 +567,107 @@ async function startWhatsAppBot() {
         });
 
         // ======================================
-        // WELCOME / GOODBYE
+        // WELCOME / GOODBYE — KAYSEUR MDX
         // ======================================
 
         sock.ev.on('group-participants.update', async update => {
-            const {
-                id,
-                participants,
-                action
-            } = update;
+            const { id, participants, action } = update;
 
             try {
-                if (!id || !Array.isArray(participants)) {
-                    return;
-                }
+                if (!id || !Array.isArray(participants)) return;
+                if (action !== 'add' && action !== 'remove') return;
 
                 const metadata = await sock.groupMetadata(id);
 
-                const groupIcon = await sock
-                    .profilePictureUrl(id, 'image')
-                    .catch(() => null);
+                const groupName = metadata.subject || 'GROUPE';
+                const groupDescription =
+                    metadata.desc || 'Aucune description définie';
 
-                const menuImagePath = path.resolve(
-                    __dirname,
-                    config.menuImage || 'assets/menu.png'
-                );
+                const membersCount = metadata.participants.length;
 
-                const botIcon =
-                    fs.existsSync(menuImagePath)
-                        ? fs.readFileSync(menuImagePath)
-                        : groupIcon
-                            ? { url: groupIcon }
-                            : null;
+                const channelLink = config.channelLink || '';
 
-                const adminsCount = metadata.participants.filter(
-                    participant => participant.admin
-                ).length;
+                const buttons = /^https?:\/\//i.test(channelLink)
+                    ? [{
+                        index: 1,
+                        urlButton: {
+                            displayText: '📢 VOIR NOTRE CHAÎNE',
+                            url: channelLink
+                        }
+                    }]
+                    : [];
 
                 for (const user of participants) {
-                    if (action === 'add') {
-                        const welcomeCaption = boxText('WELCOME', [
-                            'BOT : KAYSEUR MDX',
-                            `BIENVENUE : @${user.split('@')[0]}`,
-                            'BIENVENUE DANS LE GROUPE !',
-                            `CHAINE : ${config.channelLink}`
-                        ]);
+                    const phone = user.split('@')[0];
 
+                    let profilePicture = null;
+
+                    try {
+                        profilePicture = await sock.profilePictureUrl(
+                            user,
+                            'image'
+                        );
+                    } catch {
+                        try {
+                            profilePicture = await sock.profilePictureUrl(
+                                id,
+                                'image'
+                            );
+                        } catch {
+                            profilePicture = null;
+                        }
+                    }
+
+                    const isWelcome = action === 'add';
+
+                    const title = isWelcome
+                        ? 'WELCOME TO THE FAMILY'
+                        : 'GOODBYE MEMBER';
+
+                    const details = [
+                        '╭━━〔 KAYSEUR MDX 〕━━╮',
+                        '',
+                        isWelcome
+                            ? '✦ UN NOUVEAU MEMBRE NOUS REJOINT'
+                            : '✦ UN MEMBRE NOUS QUITTE',
+                        '',
+                        `👤 MEMBRE : @${phone}`,
+                        `👑 GROUPE : ${groupName}`,
+                        `👥 MEMBRES : ${membersCount}`,
+                        '',
+                        '📜 DESCRIPTION DU GROUPE :',
+                        groupDescription,
+                        '',
+                        isWelcome
+                            ? '🔥 RESPECTE LES RÈGLES ET PROFITE DE LA FAMILLE !'
+                            : '🖤 MERCI POUR TON PASSAGE. BONNE CONTINUATION !',
+                        '',
+                        '╰━━〔 MR KING KAYSEUR 〕━━╯'
+                    ];
+
+                    const caption = boxText(title, details);
+
+                    if (profilePicture) {
                         const message = {
-                            caption: welcomeCaption,
+                            image: { url: profilePicture },
+                            caption,
                             mentions: [user]
                         };
 
-                        if (botIcon) {
-                            message.image = botIcon;
+                        if (buttons.length) {
+                            message.templateButtons = buttons;
                         }
 
                         await sock.sendMessage(id, message);
 
-                    } else if (action === 'remove') {
-                        const goodbyeCaption = boxText('GOODBYE', [
-                            `MEMBRE : @${user.split('@')[0]}`,
-                            `ADMINS RESTANTS : ${adminsCount}`,
-                            'AU REVOIR ET BONNE CONTINUATION !',
-                            `CHAINE : ${config.channelLink}`
-                        ]);
-
+                    } else {
                         const message = {
-                            text: goodbyeCaption,
+                            text: caption,
                             mentions: [user]
                         };
 
-                        if (groupIcon) {
-                            message.image = {
-                                url: groupIcon
-                            };
-                            message.caption = goodbyeCaption;
-                            delete message.text;
+                        if (buttons.length) {
+                            message.templateButtons = buttons;
                         }
 
                         await sock.sendMessage(id, message);
@@ -678,8 +676,8 @@ async function startWhatsAppBot() {
 
             } catch (error) {
                 console.error(
-                    '[WELCOME ERROR]',
-                    error.message
+                    '[WELCOME / GOODBYE ERROR]',
+                    error.stack || error.message
                 );
             }
         });
@@ -691,7 +689,6 @@ async function startWhatsAppBot() {
         );
 
         waSock = null;
-
         resolvePairingReadiness(false);
 
         if (!reconnectTimer) {
