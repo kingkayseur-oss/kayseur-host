@@ -18,8 +18,10 @@ const {
     createSession,
     restoreSessions,
     authenticateSession,
+    getSession,
     getSessionCount,
-    getActiveSessionCount
+    getActiveSessionCount,
+    stopAllSessions
 } = require('./src/sessionManager');
 
 const app = express();
@@ -27,10 +29,6 @@ const PORT = process.env.PORT || 3000;
 
 const PAIRING_READY_TIMEOUT = 20000;
 const PAIRING_CACHE_TIME = 45000;
-
-// ======================================
-// EXPRESS
-// ======================================
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '1mb' }));
@@ -182,10 +180,6 @@ function extractMessageBody(message) {
 // ======================================
 
 async function attachSocketEvents(sock, session) {
-
-    // ======================================
-    // CONNEXION
-    // ======================================
 
     sock.ev.on('connection.update', update => {
         const { connection, lastDisconnect } = update;
@@ -717,19 +711,45 @@ async function restoreWhatsAppSessions() {
 restoreWhatsAppSessions();
 
 // ======================================
-// ARRÊT DU SERVEUR
+// ARRÊT PROPRE DU SERVEUR
 // ======================================
 
+let shuttingDown = false;
+
 async function shutdown() {
+    if (shuttingDown) return;
+
+    shuttingDown = true;
+
     console.log('[SERVER] Arrêt demandé...');
 
-    server.close();
+    const serverClosed = new Promise(resolve => {
+        server.close(() => resolve());
+    });
+
+    try {
+        await stopAllSessions();
+    } catch (error) {
+        console.error(
+            '[SHUTDOWN SESSIONS ERROR]',
+            error.message
+        );
+    }
 
     if (telegramBot && typeof telegramBot.stop === 'function') {
         try {
             telegramBot.stop('SIGTERM');
-        } catch (_) {}
+        } catch (error) {
+            console.error(
+                '[TELEGRAM STOP ERROR]',
+                error.message
+            );
+        }
     }
+
+    await serverClosed;
+
+    console.log('[SERVER] Arrêt terminé.');
 
     process.exit(0);
 }
