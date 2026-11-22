@@ -5,38 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ᴋᴀʏsᴇᴜʀ_ᴍᴅx - Pairing Server</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div class="cyber-grid"></div>
     <div class="leaves-container" id="leaves"></div>
 
     <div class="container">
-        <div class="card">
+        <div class="card glass-effect">
+            <div class="badge-glow">KAYSEUR-MDX V1</div>
             <h1>ᴋᴀʏsᴇᴜʀ_ᴍᴅx</h1>
             <p class="subtitle">« ʟᴇ ɢʟɪᴛᴄʜ ᴇsᴛ ᴍᴀ ᴘᴜɪssᴀɴᴄᴇ »</p>
 
             <div class="tab-selector">
                 <button class="tab-btn active" onclick="switchTab('pairing')">
-                    ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ
+                    ⚡ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ
                 </button>
                 <button class="tab-btn" onclick="switchTab('qr')">
-                    ᴄᴏᴅᴇ ǫʀ
+                    📱 ᴄᴏᴅᴇ ǫʀ
                 </button>
             </div>
 
             <div id="pairing-section" class="tab-content active">
-                <input
-                    type="tel"
-                    id="phone-number"
-                    placeholder="ɴᴜᴍᴇʀᴏ (ᴇx: 24206...)"
-                    autocomplete="tel"
-                >
+                <div class="input-group">
+                    <input
+                        type="tel"
+                        id="phone-number"
+                        placeholder="ɴᴜᴍᴇʀᴏ (ᴇx: 24206...)"
+                        autocomplete="tel"
+                    >
+                </div>
 
                 <button
                     class="action-btn"
                     id="pairing-button"
                     onclick="getPairingCode()"
                 >
-                    ᴏʙᴛᴇɴɪʀ ʟᴇ ᴄᴏᴅᴇ
+                    <span>ᴏʙᴛᴇɴɪʀ ʟᴇ ᴄᴏᴅᴇ</span>
                 </button>
 
                 <div id="code-display" class="display-box">
@@ -50,16 +55,16 @@
                         id="qr-img"
                         src=""
                         alt="QR Code"
-                        style="display:none; width:180px; margin:auto;"
+                        style="display:none; width:180px; margin:auto; border-radius: 10px;"
                     />
                     <span id="qr-status">ᴄʜᴀʀɢᴇᴍᴇɴᴛ ᴅᴜ ǫʀ...</span>
                 </div>
             </div>
 
             <div class="servers-info">
-                <div>⚡ sᴇʀᴠᴇᴜʀ 1 : ᴀᴄᴛɪғ • ⚡ sᴇʀᴠᴇᴜʀ 2 : ᴀᴄᴛɪғ</div>
-                <div>⚡ sᴇʀᴠᴇᴜʀ 3 : ᴀᴄᴛɪғ • ⚡ sᴇʀᴠᴇᴜʀ 4 : ᴀᴄᴛɪғ</div>
-                <div>⚡ sᴇʀᴠᴇᴜʀ 5 : ᴜʟᴛʀᴀ-ᴘᴜɪssᴀɴᴛ</div>
+                <div class="server-status-row"><span>⚡ sᴇʀᴠᴇᴜʀ 1 : <b class="online">ᴀᴄᴛɪғ</b></span> • <span>⚡ sᴇʀᴠᴇᴜʀ 2 : <b class="online">ᴀᴄᴛɪғ</b></span></div>
+                <div class="server-status-row"><span>⚡ sᴇʀᴠᴇᴜʀ 3 : <b class="online">ᴀᴄᴛɪғ</b></span> • <span>⚡ sᴇʀᴠᴇᴜʀ 4 : <b class="online">ᴀᴄᴛɪғ</b></span></div>
+                <div class="server-status-row center"><span>🔥 sᴇʀᴠᴇᴜʀ 5 : <b class="ultra">ᴜʟᴛʀᴀ-ᴘᴜɪssᴀɴᴛ</b></span></div>
             </div>
 
             <a
@@ -68,7 +73,7 @@
                 rel="noopener noreferrer"
                 class="channel-btn"
             >
-                📢 ᴠᴏɪʀ ʟᴀ ᴄʜᴀɪɴᴇ
+                📢 ᴠᴏɪʀ ʟᴀ ᴄʜᴀɪɴᴇ ᴏғғɪᴄɪᴇʟʟᴇ
             </a>
         </div>
     </div>
@@ -83,18 +88,12 @@
 
         let privateSession = null;
 
-        // Récupération de la session privée enregistrée
         function loadSavedSession() {
             try {
                 const saved = localStorage.getItem(STORAGE_KEY);
-
                 if (saved) {
                     privateSession = JSON.parse(saved);
-
-                    if (
-                        !privateSession.sessionId ||
-                        !privateSession.token
-                    ) {
+                    if (!privateSession.sessionId || !privateSession.token) {
                         privateSession = null;
                         localStorage.removeItem(STORAGE_KEY);
                     }
@@ -107,106 +106,62 @@
 
         loadSavedSession();
 
-        // Création d'une session individuelle
         async function ensureSession() {
-            if (privateSession) {
-                return privateSession;
-            }
-
-            if (sessionCreationActive) {
-                throw new Error('Création de session déjà en cours');
-            }
+            if (privateSession) return privateSession;
+            if (sessionCreationActive) throw new Error('Création de session déjà en cours');
 
             sessionCreationActive = true;
-
             try {
                 const response = await fetch('/api/sessions', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     cache: 'no-store'
                 });
 
                 const data = await response.json();
-
                 if (!response.ok || !data.sessionId || !data.token) {
-                    throw new Error(
-                        data.error || data.message || 'Impossible de créer la session'
-                    );
+                    throw new Error(data.error || data.message || 'Impossible de créer la session');
                 }
 
-                privateSession = {
-                    sessionId: data.sessionId,
-                    token: data.token
-                };
-
-                // Conservation privée sur cet appareil et ce navigateur
-                localStorage.setItem(
-                    STORAGE_KEY,
-                    JSON.stringify(privateSession)
-                );
-
+                privateSession = { sessionId: data.sessionId, token: data.token };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(privateSession));
                 return privateSession;
-
             } finally {
                 sessionCreationActive = false;
             }
         }
 
-        // En-têtes d'authentification de la session
         function sessionHeaders() {
-            if (!privateSession) {
-                throw new Error('Aucune session disponible');
-            }
-
+            if (!privateSession) throw new Error('Aucune session disponible');
             return {
                 'Authorization': 'Bearer ' + privateSession.token,
                 'Content-Type': 'application/json'
             };
         }
 
-        // Vérification de la session
         async function checkSessionStatus() {
             if (!privateSession) return null;
-
-            const response = await fetch(
-                '/api/sessions/' + encodeURIComponent(privateSession.sessionId) + '/status',
-                {
-                    method: 'GET',
-                    headers: sessionHeaders(),
-                    cache: 'no-store'
-                }
-            );
-
+            const response = await fetch('/api/sessions/' + encodeURIComponent(privateSession.sessionId) + '/status', {
+                method: 'GET',
+                headers: sessionHeaders(),
+                cache: 'no-store'
+            });
             const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Session inaccessible');
-            }
-
+            if (!response.ok) throw new Error(data.error || 'Session inaccessible');
             return data;
         }
 
         function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(button =>
-                button.classList.remove('active')
-            );
-
-            document.querySelectorAll('.tab-content').forEach(content =>
-                content.classList.remove('active')
-            );
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
             if (tab === 'pairing') {
                 document.querySelectorAll('.tab-btn')[0].classList.add('active');
                 document.getElementById('pairing-section').classList.add('active');
-
                 stopQRPolling();
-
             } else {
                 document.querySelectorAll('.tab-btn')[1].classList.add('active');
                 document.getElementById('qr-section').classList.add('active');
-
                 loadQR();
                 startQRPolling();
             }
@@ -214,7 +169,6 @@
 
         function startQRPolling() {
             if (qrInterval) return;
-
             qrInterval = setInterval(loadQR, 3000);
         }
 
@@ -227,29 +181,23 @@
 
         function createLeaves() {
             const container = document.getElementById('leaves');
-
-            for (let i = 0; i < 35; i++) {
+            for (let i = 0; i < 25; i++) {
                 const leaf = document.createElement('div');
-
                 leaf.className = 'leaf';
                 leaf.style.left = Math.random() * 100 + 'vw';
-                leaf.style.animationDuration = (Math.random() * 5 + 4) + 's';
+                leaf.style.animationDuration = (Math.random() * 6 + 4) + 's';
                 leaf.style.animationDelay = (Math.random() * 5) + 's';
-
                 container.appendChild(leaf);
             }
         }
-
         createLeaves();
 
-        // Génération du code de connexion
         async function getPairingCode() {
             if (pairingRequestActive) return;
 
             const phoneInput = document.getElementById('phone-number');
             const display = document.getElementById('code-display');
             const button = document.getElementById('pairing-button');
-
             const phone = phoneInput.value.replace(/\D/g, '');
 
             if (phone.length < 8 || phone.length > 15) {
@@ -259,46 +207,29 @@
 
             pairingRequestActive = true;
             button.disabled = true;
-            button.innerText = 'ɢᴇɴᴇʀᴀᴛɪᴏɴ...';
-            display.innerText = 'ᴄʀᴇᴀᴛɪᴏɴ ᴅᴇ ᴠᴏᴛʀᴇ sᴇssɪᴏɴ...';
+            button.innerText = 'ɢᴇ́ɴᴇ́ʀᴀᴛɪᴏɴ...';
+            display.innerText = 'ᴄʀᴇ́ᴀᴛɪᴏɴ ᴅᴇ ᴠᴏᴛʀᴇ sᴇssɪᴏɴ...';
 
             try {
                 const session = await ensureSession();
-
                 display.innerText = 'ᴄᴏɴɴᴇxɪᴏɴ ᴀᴜ sᴇʀᴠᴇᴜʀ...';
 
-                const response = await fetch(
-                    '/api/sessions/' +
-                    encodeURIComponent(session.sessionId) +
-                    '/pairing',
-                    {
-                        method: 'POST',
-                        headers: sessionHeaders(),
-                        body: JSON.stringify({ phone }),
-                        cache: 'no-store'
-                    }
-                );
+                const response = await fetch('/api/sessions/' + encodeURIComponent(session.sessionId) + '/pairing', {
+                    method: 'POST',
+                    headers: sessionHeaders(),
+                    body: JSON.stringify({ phone }),
+                    cache: 'no-store'
+                });
 
                 const data = await response.json();
-
                 if (!response.ok || !data.code) {
-                    display.innerText =
-                        data.error ||
-                        data.details ||
-                        data.message ||
-                        'ᴇʀʀᴇᴜʀ ᴅᴇ ᴘᴀɪʀɪɴɢ';
-
+                    display.innerText = data.error || data.details || data.message || 'ᴇʀʀᴇᴜʀ ᴅᴇ ᴘᴀɪʀɪɴɢ';
                     return;
                 }
 
                 display.innerText = data.code;
-
             } catch (error) {
-                console.error('Pairing error:', error);
-
-                display.innerText =
-                    error.message || 'ᴇʀʀᴇᴜʀ ᴅᴇ ᴄᴏɴɴᴇxɪᴏɴ';
-
+                display.innerText = error.message || 'ᴇʀʀᴇᴜʀ ᴅᴇ ᴄᴏɴɴᴇxɪᴏɴ';
             } finally {
                 pairingRequestActive = false;
                 button.disabled = false;
@@ -306,43 +237,29 @@
             }
         }
 
-        // Chargement du QR de la session privée
         async function loadQR() {
             const qrImage = document.getElementById('qr-img');
             const qrStatus = document.getElementById('qr-status');
 
             try {
                 const session = await ensureSession();
-
-                const response = await fetch(
-                    '/api/sessions/' +
-                    encodeURIComponent(session.sessionId) +
-                    '/qr',
-                    {
-                        method: 'GET',
-                        headers: sessionHeaders(),
-                        cache: 'no-store'
-                    }
-                );
+                const response = await fetch('/api/sessions/' + encodeURIComponent(session.sessionId) + '/qr', {
+                    method: 'GET',
+                    headers: sessionHeaders(),
+                    cache: 'no-store'
+                });
 
                 const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(
-                        data.error || 'Impossible de charger le QR'
-                    );
-                }
+                if (!response.ok) throw new Error(data.error || 'Impossible de charger le QR');
 
                 if (data.qr) {
                     qrImage.src = data.qr;
                     qrImage.style.display = 'block';
                     qrStatus.style.display = 'none';
-
                 } else {
                     qrImage.style.display = 'none';
                     qrStatus.style.display = 'block';
-                    qrStatus.innerText =
-                        data.status || 'ǫʀ ɴᴏɴ ᴅɪsᴘᴏɴɪʙʟᴇ';
+                    qrStatus.innerText = data.status || 'ǫʀ ɴᴏɴ ᴅɪsᴘᴏɴɪʙʟᴇ';
                 }
 
                 if (data.status === 'connected') {
@@ -351,41 +268,27 @@
                     qrStatus.innerText = 'ᴄᴏɴɴᴇxɪᴏɴ ʀᴇᴜssɪᴇ !';
                     stopQRPolling();
                 }
-
             } catch (error) {
-                console.error('QR error:', error);
-
                 qrImage.style.display = 'none';
                 qrStatus.style.display = 'block';
-                qrStatus.innerText =
-                    error.message || 'ᴇʀʀᴇᴜʀ ᴅᴜ sᴇʀᴠᴇᴜʀ';
+                qrStatus.innerText = error.message || 'ᴇʀʀᴇᴜʀ ᴅᴜ sᴇʀᴠᴇᴜʀ';
             }
         }
 
-        // Vérification périodique de l'état de la session
         async function refreshSessionStatus() {
             if (!privateSession) return;
-
             try {
                 const data = await checkSessionStatus();
-
                 if (data && data.status === 'connected') {
                     const qrStatus = document.getElementById('qr-status');
-
-                    if (
-                        document.getElementById('qr-section').classList.contains('active')
-                    ) {
+                    if (document.getElementById('qr-section').classList.contains('active')) {
                         document.getElementById('qr-img').style.display = 'none';
                         qrStatus.style.display = 'block';
                         qrStatus.innerText = 'ᴄᴏɴɴᴇxɪᴏɴ ʀᴇᴜssɪᴇ !';
                     }
-
                     stopQRPolling();
                 }
-
-            } catch (error) {
-                console.warn('Status check:', error.message);
-            }
+            } catch (error) {}
         }
 
         statusInterval = setInterval(refreshSessionStatus, 5000);
