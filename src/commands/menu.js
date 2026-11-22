@@ -71,7 +71,7 @@ async function sendMainMenu(sock, mek, pushName) {
 ┃  ⚡ ${toKayseurFont('MENU PRINCIPAL')}
 ┃  👤 Utilisateur : ${pushName}
 ┃  👑 Propriétaire : ${config.ownerName || 'MR KING KAYSEUR'}
-┃  🍓 Préfixe : ${config.prefix || '.'}
+┃  🍓 Préfixe : ${config.prefix || '🍓'}
 ┃  📚 Commandes : ${commandCount}
 ┃
 ╰━━━━━━━━━━━━━━━━━━╯
@@ -88,7 +88,7 @@ ${section.commands.map(command => `│ ➤ ${toKayseurFont(command)}`).join('\n'
 ┃
 ╰━━━━━━━━━━━━━━━━━━╯
 
-> ${toKayseurFont('POWERED BY MR KING KAYSEUR THE GLITCH DEV')}
+> ${toKayseurFont('POWERED BY MR KING KAYSEUR THE GLITCH DEV 🐾')}
 `.trim();
 
     const imageUrl = 'https://files.catbox.moe/47dngj.jpg';
